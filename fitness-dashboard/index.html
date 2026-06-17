@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0A0A0B" />
+  <title>SH / Cut Phase</title>
+
+  <!-- Pretendard for Korean, Geist Mono for numerics -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/geist-font@1.3.0/dist/mono/style.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+
+    <!-- ───────── 1. 헤더 / 목표 카운터 ───────── -->
+    <header class="hero" id="hero">
+      <div class="hero-row">
+        <span class="eyebrow">CUT PHASE — TARGET 2026.07.17</span>
+        <button class="refresh" id="refreshBtn" aria-label="새로고침">↻</button>
+      </div>
+
+      <div class="hero-grid">
+        <div class="metric metric-lg">
+          <span class="metric-label">D-DAY</span>
+          <span class="metric-value" id="dDay">—</span>
+        </div>
+        <div class="metric metric-lg">
+          <span class="metric-label">BF%</span>
+          <span class="metric-value" id="currentBf">—</span>
+          <span class="metric-sub" id="bfDelta">목표 14.8%</span>
+        </div>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+        <div class="progress-marks">
+          <span>16.5%</span>
+          <span id="progressPct">0%</span>
+          <span>14.8%</span>
+        </div>
+      </div>
+
+      <div class="updated" id="lastUpdated">—</div>
+    </header>
+
+    <!-- ───────── 2. 운동 잔디 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>WORKOUT GRID</h2>
+        <span class="card-sub" id="gridSubtitle">최근 1년</span>
+      </div>
+      <div class="heatmap-wrap">
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+      <div class="legend">
+        <span class="dot dot-hockey"></span><span class="legend-label">하키</span>
+        <span class="dot dot-weight"></span><span class="legend-label">웨이트</span>
+        <span class="dot dot-cardio"></span><span class="legend-label">유산소</span>
+        <span class="dot dot-rest"></span><span class="legend-label">휴식</span>
+      </div>
+      <div class="tap-info" id="tapInfo">셀을 탭하면 상세 표시</div>
+    </section>
+
+    <!-- ───────── 3. 체성분 추세 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>COMPOSITION TREND</h2>
+        <span class="card-sub">최근 60일 · 7일 이동평균</span>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="compositionChart"></canvas>
+      </div>
+      <div class="legend">
+        <span class="line-token line-weight"></span><span class="legend-label">체중</span>
+        <span class="line-token line-bf"></span><span class="legend-label">체지방률</span>
+        <span class="line-token line-target"></span><span class="legend-label">목표 14.8%</span>
+      </div>
+    </section>
+
+    <!-- ───────── 4. 오늘의 매크로 링 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>TODAY</h2>
+        <span class="card-sub" id="todayType">—</span>
+      </div>
+      <div class="macro-grid" id="macroGrid">
+        <!-- rings injected by JS -->
+      </div>
+    </section>
+
+    <!-- ───────── 5. 주간 칼로리 / 단백질 바 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>WEEK</h2>
+        <span class="card-sub">최근 7일</span>
+      </div>
+      <div class="chart-wrap chart-wrap-sm">
+        <canvas id="kcalChart"></canvas>
+      </div>
+      <div class="chart-wrap chart-wrap-sm">
+        <canvas id="proteinChart"></canvas>
+      </div>
+    </section>
+
+    <!-- ───────── 6. 마지막 음주 카운터 ───────── -->
+    <section class="card card-sober">
+      <div class="card-head">
+        <h2>SOBER STREAK</h2>
+      </div>
+      <div class="sober">
+        <span class="sober-num" id="soberDays">—</span>
+        <span class="sober-label">DAYS SINCE LAST DRINK</span>
+        <span class="sober-meta" id="soberMeta"></span>
+      </div>
+    </section>
+
+    <!-- ───────── 7. 이번주 vs 지난주 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>WEEK / WEEK</h2>
+      </div>
+      <div class="ww-grid" id="wwGrid">
+        <!-- injected -->
+      </div>
+    </section>
+
+    <!-- ───────── 8. 인사이트 카드 ───────── -->
+    <section class="card card-insight">
+      <div class="card-head">
+        <h2>FORECAST</h2>
+      </div>
+      <div class="insights" id="insights">
+        <!-- injected -->
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span>Built for 석호 · 7.17 cut</span>
+    </footer>
+  </main>
+
+  <!-- Tap detail modal -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <span id="modalDate">—</span>
+        <button id="modalClose" aria-label="닫기">×</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
