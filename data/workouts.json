@@ -1,5 +1,16 @@
 [
   {
+    "id": "3828780f-9317-814c-b089-e22a4dfd833a",
+    "name": "6/17 웨이트",
+    "date": "2026-06-17",
+    "type": "웨이트",
+    "duration": 70,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 442,
+    "note": null
+  },
+  {
     "id": "3818780f-9317-8172-bd83-dc87b9b78f13",
     "name": "6/16 하키",
     "date": "2026-06-16",
