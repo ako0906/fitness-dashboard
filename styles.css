@@ -251,6 +251,7 @@ h2 {
   display: inline-block;
 }
 .line-weight { background: var(--text); }
+.line-skeletal { background: var(--hockey); }
 .line-bf     { background: var(--warn); }
 .line-target {
   background: linear-gradient(90deg, var(--good) 0, var(--good) 50%, transparent 50%, transparent 100%);
