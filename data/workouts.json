@@ -1,1 +1,167 @@
-[]
+[
+  {
+    "id": "3818780f-9317-8172-bd83-dc87b9b78f13",
+    "name": "6/16 하키",
+    "date": "2026-06-16",
+    "type": "하키",
+    "duration": 83,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 802,
+    "note": "첫 83분 완주 / 평균심박 149BPM / 강도 7(어려움)"
+  },
+  {
+    "id": "3808780f-9317-812c-8d67-c450980757e7",
+    "name": "6/15 웨이트",
+    "date": "2026-06-15",
+    "type": "웨이트",
+    "duration": 0,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 399,
+    "note": null
+  },
+  {
+    "id": "37c8780f-9317-8152-868e-e18a7028e864",
+    "name": "6/11 하키",
+    "date": "2026-06-11",
+    "type": "하키",
+    "duration": 120,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "인바디 전날"
+  },
+  {
+    "id": "37c8780f-9317-8136-9497-f5d52f5f356a",
+    "name": "6/9 하키",
+    "date": "2026-06-09",
+    "type": "하키",
+    "duration": 90,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "야근 후 하키"
+  },
+  {
+    "id": "3798780f-9317-81a8-a0e4-ce6a2cd29247",
+    "name": "6/8 웨이트(가슴+팔)",
+    "date": "2026-06-08",
+    "type": "웨이트",
+    "duration": 76,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 287,
+    "note": "가슴+팔"
+  },
+  {
+    "id": "3788780f-9317-813f-beca-f054da261568",
+    "name": "6/7 유산소 실내스케이트",
+    "date": "2026-06-07",
+    "type": "유산소",
+    "duration": 120,
+    "intensity": "보통",
+    "condition": null,
+    "appleKcal": null,
+    "note": "실내스케이트 2시간"
+  },
+  {
+    "id": "3778780f-9317-81d1-9791-c3cfb6058a8d",
+    "name": "6/6 하키",
+    "date": "2026-06-06",
+    "type": "하키",
+    "duration": 90,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 371,
+    "note": "워밍업 포함 실제 90분 / 애플워치 중간 시작 40분만 측정"
+  },
+  {
+    "id": "3778780f-9317-81a3-903f-f961a1c9a07b",
+    "name": "6/5 웨이트(등+어깨)",
+    "date": "2026-06-05",
+    "type": "웨이트",
+    "duration": 90,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": 454,
+    "note": "등+어깨"
+  },
+  {
+    "id": "3768780f-9317-8195-a49c-d3930e2a3142",
+    "name": "6/4 하키",
+    "date": "2026-06-04",
+    "type": "하키",
+    "duration": 120,
+    "intensity": "매우높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "평소보다 강도 높음"
+  },
+  {
+    "id": "3768780f-9317-81e8-8328-e025dea02c76",
+    "name": "6/3 하키",
+    "date": "2026-06-03",
+    "type": "하키",
+    "duration": 80,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": null
+  },
+  {
+    "id": "3768780f-9317-81d4-bcce-d4fef02cc0b1",
+    "name": "6/1 웨이트(하체)",
+    "date": "2026-06-01",
+    "type": "웨이트",
+    "duration": 60,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "하체"
+  },
+  {
+    "id": "3768780f-9317-8115-beaa-d061ebfbcb9d",
+    "name": "5/30 하키",
+    "date": "2026-05-30",
+    "type": "하키",
+    "duration": 80,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": null
+  },
+  {
+    "id": "3768780f-9317-819f-85cc-deeff3a0257f",
+    "name": "5/29 웨이트",
+    "date": "2026-05-29",
+    "type": "웨이트",
+    "duration": 60,
+    "intensity": "보통",
+    "condition": null,
+    "appleKcal": null,
+    "note": null
+  },
+  {
+    "id": "3768780f-9317-814b-9599-d30290eafcfb",
+    "name": "5/27 하키",
+    "date": "2026-05-27",
+    "type": "하키",
+    "duration": 80,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "레슨 + 연습게임"
+  },
+  {
+    "id": "3768780f-9317-81ba-89df-c90474a60116",
+    "name": "5/26 하키",
+    "date": "2026-05-26",
+    "type": "하키",
+    "duration": 80,
+    "intensity": "높음",
+    "condition": null,
+    "appleKcal": null,
+    "note": "레슨 1시간 + 연습게임 20분"
+  }
+]
