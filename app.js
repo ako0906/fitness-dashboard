@@ -131,7 +131,10 @@ function renderHeatmap(workouts) {
     cell.className = 'heatmap-cell';
     cell.dataset.date = ymd;
 
-    if (date > today) {
+    const isToday  = date.getTime() === today.getTime();
+    const isFuture = date > today;
+
+    if (isFuture) {
       cell.classList.add('future');
     } else {
       const rec = map[ymd];
@@ -144,12 +147,13 @@ function renderHeatmap(workouts) {
         })[rec.type] || 'rest';
         cell.classList.add(typeClass);
         if (rec.intensity) cell.dataset.intensity = rec.intensity;
-        if (date.getTime() === today.getTime()) cell.classList.add('today');
         cell.addEventListener('click', () => showWorkoutModal(rec, ymd));
       } else {
         cell.classList.add('empty');
       }
     }
+
+    if (isToday) cell.classList.add('today');
     wrap.appendChild(cell);
   }
 
@@ -159,6 +163,12 @@ function renderHeatmap(workouts) {
     return d >= addDays(today, -30) && d <= today && CONFIG.weights.includes(w.type) || w.type === '유산소';
   }).length;
   $('gridSubtitle').textContent = `최근 30일 운동 ${last30}회`;
+
+  // auto-scroll to today (rightmost)
+  const scrollWrap = document.querySelector('.heatmap-wrap');
+  if (scrollWrap) {
+    requestAnimationFrame(() => { scrollWrap.scrollLeft = scrollWrap.scrollWidth; });
+  }
 }
 
 function showWorkoutModal(rec, date) {
@@ -182,37 +192,97 @@ $('modal').addEventListener('click', e => {
   if (e.target.id === 'modal') $('modal').hidden = true;
 });
 
-// ───────── 3. Composition trend ─────────
-let compChart;
-function renderCompositionChart(daily, inbody) {
-  const ctx = $('compositionChart').getContext('2d');
-  if (compChart) compChart.destroy();
+// ───────── 3. Composition (cards + BF chart) ─────────
+let bfChart;
 
-  // last 60 days
+function makeSparkline(values, color = '#8E8E93') {
+  const valid = values.filter(v => v != null);
+  if (valid.length < 2) return '';
+  const w = 100, h = 18;
+  const min = Math.min(...valid);
+  const max = Math.max(...valid);
+  const range = (max - min) || 1;
+  const points = values.map((v, i) => {
+    if (v == null) return null;
+    const x = values.length > 1 ? (i / (values.length - 1)) * w : 0;
+    const y = h - ((v - min) / range) * (h - 2) - 1;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).filter(p => p);
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polyline points="${points.join(' ')}" stroke="${color}" stroke-width="1.2" fill="none" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+  </svg>`;
+}
+
+function renderMetricCard(cardId, daily, key, unit, opts = {}) {
+  const card = $(cardId);
+  if (!card) return;
+  const numEl    = card.querySelector('.metric-num');
+  const deltaEl  = card.querySelector('.metric-delta');
+  const sparkEl  = card.querySelector('.sparkline-wrap');
+
+  const sorted = [...daily]
+    .filter(d => d[key] != null)
+    .sort((a, b) => a.date < b.date ? -1 : 1);
+
+  if (!sorted.length) {
+    numEl.textContent = '—';
+    deltaEl.textContent = '—';
+    return;
+  }
+
+  const latest = sorted[sorted.length - 1];
+  const decimals = (key === 'bf') ? 1 : 1;
+  numEl.innerHTML = `${latest[key].toFixed(decimals)}<span class="metric-unit">${unit}</span>`;
+
+  // 7-day delta: compare latest to the value closest to 7 days before
+  const latestDate = new Date(latest.date);
+  const target = addDays(latestDate, -7);
+  // find closest record at-or-before target
+  let prev = null;
+  for (const r of sorted) {
+    if (new Date(r.date) <= target) prev = r;
+    else break;
+  }
+  if (!prev) prev = sorted[0];
+
+  const delta = latest[key] - prev[key];
+  const sign = delta > 0 ? '+' : '';
+  const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
+  const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
+  deltaEl.className = 'metric-delta' + (goodDir ? ' good' : badDir ? ' warn' : '');
+  deltaEl.textContent = Math.abs(delta) < 0.05 ? `±0 / 주` : `${sign}${delta.toFixed(decimals)} / 주`;
+
+  // sparkline: last 30 days (filling all daily slots)
+  const today = nowKST(); today.setHours(0,0,0,0);
+  const cutoff = addDays(today, -30);
+  const recent = sorted.filter(d => new Date(d.date) >= cutoff);
+  const values = recent.map(d => d[key]);
+  sparkEl.innerHTML = makeSparkline(values, opts.sparkColor || '#8E8E93');
+}
+
+function renderBfChart(daily, inbody) {
+  const ctx = $('bfChart').getContext('2d');
+  if (bfChart) bfChart.destroy();
+
   const today = nowKST();
   const start = addDays(today, -60);
   const all = daily
     .filter(d => new Date(d.date) >= start)
     .sort((a, b) => a.date < b.date ? -1 : 1);
 
-  // skip leading days that have no body composition data
-  const firstIdx = all.findIndex(d => d.bf != null || d.weight != null);
+  // skip leading days without bf data
+  const firstIdx = all.findIndex(d => d.bf != null);
   const filtered = firstIdx >= 0 ? all.slice(firstIdx) : all;
 
   const labels = filtered.map(d => d.date.slice(5));
 
-  // 7-day moving avg
-  const movAvg = (arr, key, w = 7) => {
-    return arr.map((_, i) => {
-      const slice = arr.slice(Math.max(0, i - w + 1), i + 1).map(x => x[key]).filter(v => v != null);
-      if (!slice.length) return null;
-      return slice.reduce((a, b) => a + b, 0) / slice.length;
-    });
-  };
+  const movAvg = (arr, key, w = 7) => arr.map((_, i) => {
+    const slice = arr.slice(Math.max(0, i - w + 1), i + 1).map(x => x[key]).filter(v => v != null);
+    if (!slice.length) return null;
+    return slice.reduce((a, b) => a + b, 0) / slice.length;
+  });
 
-  const weightMA   = movAvg(filtered, 'weight');
-  const skeletalMA = movAvg(filtered, 'skeletal');
-  const bfMA       = movAvg(filtered, 'bf');
+  const bfMA = movAvg(filtered, 'bf');
 
   // inbody markers
   const inbodyDots = filtered.map(d => {
@@ -223,59 +293,37 @@ function renderCompositionChart(daily, inbody) {
   Chart.defaults.font.family = "'Geist Mono', monospace";
   Chart.defaults.color = '#8E8E93';
 
-  compChart = new Chart(ctx, {
+  bfChart = new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [
         {
-          label: '체중 (7DMA)',
-          data: weightMA,
-          borderColor: '#F5F5F7',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          tension: 0.3,
-          pointRadius: 0,
-          yAxisID: 'y1',
-        },
-        {
-          label: '골격근량 (7DMA)',
-          data: skeletalMA,
-          borderColor: '#0A84FF',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
-          tension: 0.3,
-          pointRadius: 0,
-          yAxisID: 'y1',
-        },
-        {
           label: '체지방률 (7DMA)',
           data: bfMA,
           borderColor: '#FF9F0A',
-          backgroundColor: 'transparent',
-          borderWidth: 1.5,
+          backgroundColor: 'rgba(255,159,10,0.06)',
+          borderWidth: 1.8,
           tension: 0.3,
           pointRadius: 0,
-          yAxisID: 'y2',
+          fill: true,
         },
         {
           label: 'InBody',
           data: inbodyDots,
           borderColor: 'transparent',
-          backgroundColor: '#30D158',
+          backgroundColor: '#FF9F0A',
           pointRadius: 4,
           pointHoverRadius: 6,
           showLine: false,
-          yAxisID: 'y2',
         },
         {
           label: '목표 14.8%',
           data: filtered.map(() => CONFIG.target.bf),
-          borderColor: '#30D158',
+          borderColor: 'rgba(255,159,10,0.5)',
           borderDash: [3, 3],
           borderWidth: 1,
           pointRadius: 0,
-          yAxisID: 'y2',
         },
       ],
     },
@@ -292,6 +340,13 @@ function renderCompositionChart(daily, inbody) {
           titleFont: { family: "'Geist Mono', monospace", size: 10 },
           bodyFont:  { family: "'Geist Mono', monospace", size: 11 },
           padding: 10,
+          callbacks: {
+            label: (ctx) => {
+              if (ctx.dataset.label === 'InBody' && ctx.parsed.y == null) return null;
+              if (ctx.parsed.y == null) return null;
+              return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`;
+            }
+          }
         },
       },
       scales: {
@@ -299,19 +354,21 @@ function renderCompositionChart(daily, inbody) {
           grid: { display: false },
           ticks: { font: { size: 9 }, maxTicksLimit: 6 },
         },
-        y1: {
-          position: 'left',
+        y: {
           grid: { color: '#1F1F22', lineWidth: 0.5 },
-          ticks: { font: { size: 9 }, color: '#F5F5F7' },
-        },
-        y2: {
-          position: 'right',
-          grid: { display: false },
-          ticks: { font: { size: 9 }, color: '#FF9F0A' },
+          ticks: { font: { size: 9 }, color: '#FF9F0A', callback: v => v.toFixed(1) + '%' },
+          suggestedMin: CONFIG.target.bf - 0.5,
         },
       },
     },
   });
+}
+
+function renderComposition(daily, inbody) {
+  renderMetricCard('card-weight',   daily, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#F5F5F7' });
+  renderMetricCard('card-skeletal', daily, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#0A84FF' });
+  renderMetricCard('card-bf',       daily, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#FF9F0A' });
+  renderBfChart(daily, inbody);
 }
 
 // ───────── 4. Today macros ─────────
@@ -648,7 +705,7 @@ async function render() {
   const data = await loadAll();
   renderHero(data.daily);
   renderHeatmap(data.workouts);
-  renderCompositionChart(data.daily, data.inbody);
+  renderComposition(data.daily, data.inbody);
   renderTodayMacros(data.meals, data.workouts);
   renderWeekCharts(data.meals, data.workouts);
   renderSober(data.daily);
