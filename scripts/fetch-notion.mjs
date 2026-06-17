@@ -10,10 +10,10 @@ import path from 'node:path';
 
 const TOKEN = process.env.NOTION_TOKEN;
 const DB_IDS = {
-  meals:    process.env.NOTION_DB_MEALS    || 'f2433e8d-e57d-4f85-b6cd-430c55408378',
-  workouts: process.env.NOTION_DB_WORKOUTS || '811667e8-7381-459a-b6c6-3fb4099a531e',
-  daily:    process.env.NOTION_DB_DAILY    || 'fcea91a2-da72-45a7-8624-625e71abf494',
-  inbody:   process.env.NOTION_DB_INBODY   || '908e3502-a5c9-4a6d-84df-346b2040a8c9',
+  meals:    process.env.NOTION_DB_MEALS    || '0b202364-fcb9-4ccc-ad1e-a5bf58c84ff3',
+  workouts: process.env.NOTION_DB_WORKOUTS || '9fdcae68-3dac-44e6-96c3-7945f61db79c',
+  daily:    process.env.NOTION_DB_DAILY    || '268094c9-bcab-4dbe-a0db-c5b138d79ce4',
+  inbody:   process.env.NOTION_DB_INBODY   || '14501f04-0be2-4a7d-95a9-dd72d6bfd3b2',
 };
 
 if (!TOKEN) {
