@@ -215,13 +215,13 @@ h2 {
   cursor: pointer;
   transition: outline 0.1s;
 }
-.heatmap-cell.empty { background: transparent; }
+.heatmap-cell.empty { background: rgba(255,255,255,0.025); }
 .heatmap-cell.hockey { background: var(--hockey); }
 .heatmap-cell.weight { background: var(--weight); }
 .heatmap-cell.cardio { background: var(--cardio); }
 .heatmap-cell.rest   { background: #2C2C2E; }
 .heatmap-cell.future { background: transparent; border: 1px dashed var(--hairline); }
-.heatmap-cell.today  { outline: 1.5px solid var(--text); outline-offset: 1px; }
+.heatmap-cell.today  { outline: 1.5px solid var(--text); outline-offset: 1px; opacity: 1 !important; z-index: 1; position: relative; }
 
 .heatmap-cell[data-intensity="낮음"]     { opacity: 0.4; }
 .heatmap-cell[data-intensity="보통"]     { opacity: 0.65; }
@@ -253,6 +253,82 @@ h2 {
 .line-weight { background: var(--text); }
 .line-skeletal { background: var(--hockey); }
 .line-bf     { background: var(--warn); }
+
+/* ─── Metric cards (composition) ─── */
+.metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.metric-card {
+  background: var(--card-2);
+  border-radius: 8px;
+  padding: 10px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.metric-card .metric-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.metric-card .metric-num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+.metric-card .metric-unit {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-2);
+  margin-left: 1px;
+}
+.metric-card .metric-delta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+.metric-card .metric-delta.good { color: var(--good); }
+.metric-card .metric-delta.warn { color: var(--warn); }
+.sparkline-wrap {
+  height: 18px;
+  margin-top: 2px;
+}
+.sparkline-wrap svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+/* ─── Sub-header inside card (for BF chart) ─── */
+.chart-sub-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px solid var(--hairline);
+  padding-top: 12px;
+  margin-top: 2px;
+}
+.chart-sub-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.chart-sub-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--warn);
+}
 .line-target {
   background: linear-gradient(90deg, var(--good) 0, var(--good) 50%, transparent 50%, transparent 100%);
   background-size: 6px 2px;
