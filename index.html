@@ -68,20 +68,38 @@
       <div class="tap-info" id="tapInfo">셀을 탭하면 상세 표시</div>
     </section>
 
-    <!-- ───────── 3. 체성분 추세 ───────── -->
+    <!-- ───────── 3. 체성분 ───────── -->
     <section class="card">
       <div class="card-head">
-        <h2>COMPOSITION TREND</h2>
-        <span class="card-sub">최근 60일 · 7일 이동평균</span>
+        <h2>COMPOSITION</h2>
+        <span class="card-sub">7일 변화</span>
+      </div>
+      <div class="metric-row">
+        <div class="metric-card" id="card-weight">
+          <span class="metric-label">체중</span>
+          <span class="metric-num">—</span>
+          <span class="metric-delta">—</span>
+          <div class="sparkline-wrap"></div>
+        </div>
+        <div class="metric-card" id="card-skeletal">
+          <span class="metric-label">골격근</span>
+          <span class="metric-num">—</span>
+          <span class="metric-delta">—</span>
+          <div class="sparkline-wrap"></div>
+        </div>
+        <div class="metric-card" id="card-bf">
+          <span class="metric-label">체지방률</span>
+          <span class="metric-num">—</span>
+          <span class="metric-delta">—</span>
+          <div class="sparkline-wrap"></div>
+        </div>
+      </div>
+      <div class="chart-sub-head">
+        <span class="chart-sub-title">BF% · 7DMA</span>
+        <span class="chart-sub-meta">목표 14.8%</span>
       </div>
       <div class="chart-wrap">
-        <canvas id="compositionChart"></canvas>
-      </div>
-      <div class="legend">
-        <span class="line-token line-weight"></span><span class="legend-label">체중</span>
-        <span class="line-token line-skeletal"></span><span class="legend-label">골격근량</span>
-        <span class="line-token line-bf"></span><span class="legend-label">체지방률</span>
-        <span class="line-token line-target"></span><span class="legend-label">목표 14.8%</span>
+        <canvas id="bfChart"></canvas>
       </div>
     </section>
 
