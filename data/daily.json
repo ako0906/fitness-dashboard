@@ -7,13 +7,13 @@
     "skeletal": 31.35,
     "bf": 16.2,
     "fatMass": 10.76,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 160,
+    "totalCarb": 226,
+    "totalFat": 51,
+    "totalKcal": 2003,
     "drinking": false,
     "sleep": null,
-    "notes": "진행중"
+    "notes": "웨이트 70분 442kcal / 음주 X"
   },
   {
     "id": "3818780f-9317-816a-a0ff-ef8f278cb3ba",
@@ -23,29 +23,13 @@
     "skeletal": 31.43,
     "bf": 16.4,
     "fatMass": 10.95,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
-    "drinking": false,
-    "sleep": null,
-    "notes": "진행중"
-  },
-  {
-    "id": "3828780f-9317-814c-9576-d1fda64e9e37",
-    "name": "2026-06-16",
-    "date": "2026-06-16",
-    "weight": null,
-    "skeletal": null,
-    "bf": null,
-    "fatMass": null,
     "totalProtein": 164,
     "totalCarb": 172,
     "totalFat": 32,
     "totalKcal": 1741,
     "drinking": false,
     "sleep": null,
-    "notes": "하키 83분 802kcal(첫 83분 완주) / 음주 X"
+    "notes": "하키 83분 802kcal / 음주 X"
   },
   {
     "id": "3808780f-9317-8102-820a-d96dd1657ac9",
