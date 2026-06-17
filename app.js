@@ -45,7 +45,11 @@ function nowKST() {
   return new Date(utc + 9 * 3600000);
 }
 function toYMD(d) {
-  return d.toISOString().slice(0, 10);
+  // Use local date parts (not UTC) to avoid KST→UTC slipping back one day
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 function addDays(d, n) {
   const x = new Date(d);
@@ -187,9 +191,13 @@ function renderCompositionChart(daily, inbody) {
   // last 60 days
   const today = nowKST();
   const start = addDays(today, -60);
-  const filtered = daily
+  const all = daily
     .filter(d => new Date(d.date) >= start)
     .sort((a, b) => a.date < b.date ? -1 : 1);
+
+  // skip leading days that have no body composition data
+  const firstIdx = all.findIndex(d => d.bf != null || d.weight != null);
+  const filtered = firstIdx >= 0 ? all.slice(firstIdx) : all;
 
   const labels = filtered.map(d => d.date.slice(5));
 
@@ -202,8 +210,9 @@ function renderCompositionChart(daily, inbody) {
     });
   };
 
-  const weightMA = movAvg(filtered, 'weight');
-  const bfMA     = movAvg(filtered, 'bf');
+  const weightMA   = movAvg(filtered, 'weight');
+  const skeletalMA = movAvg(filtered, 'skeletal');
+  const bfMA       = movAvg(filtered, 'bf');
 
   // inbody markers
   const inbodyDots = filtered.map(d => {
@@ -223,6 +232,16 @@ function renderCompositionChart(daily, inbody) {
           label: '체중 (7DMA)',
           data: weightMA,
           borderColor: '#F5F5F7',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          tension: 0.3,
+          pointRadius: 0,
+          yAxisID: 'y1',
+        },
+        {
+          label: '골격근량 (7DMA)',
+          data: skeletalMA,
+          borderColor: '#0A84FF',
           backgroundColor: 'transparent',
           borderWidth: 1.5,
           tension: 0.3,
@@ -456,13 +475,24 @@ function renderSober(daily) {
   $('soberMeta').textContent = `마지막: ${lastDrink.date.slice(5, 10)}`;
 }
 
-// ───────── 7. Week / Week ─────────
+// ───────── 7. Week / Week (Mon-Sun) ─────────
+function getMonday(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Sun→back 6, otherwise back to Mon
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
 function renderWeekWeek(meals, workouts, daily) {
   const today = nowKST();
   today.setHours(0, 0, 0, 0);
 
-  const thisWeekStart = addDays(today, -7);
-  const lastWeekStart = addDays(today, -14);
+  const thisWeekStart = getMonday(today);
+  const thisWeekEnd   = addDays(thisWeekStart, 7);   // exclusive
+  const lastWeekStart = addDays(thisWeekStart, -7);
+  const lastWeekEnd   = thisWeekStart;
 
   const inRange = (ymd, start, end) => {
     const d = new Date(ymd);
@@ -494,8 +524,8 @@ function renderWeekWeek(meals, workouts, daily) {
     };
   };
 
-  const thisWeek = calc(thisWeekStart, addDays(today, 1));
-  const lastWeek = calc(lastWeekStart, thisWeekStart);
+  const thisWeek = calc(thisWeekStart, thisWeekEnd);
+  const lastWeek = calc(lastWeekStart, lastWeekEnd);
 
   const fmt = (v, suffix='', decimals=0) => v == null ? '—' : `${v.toFixed(decimals)}${suffix}`;
   const delta = (a, b, suffix='', decimals=1, lowerIsBetter=false) => {
