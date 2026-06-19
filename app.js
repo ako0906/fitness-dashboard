@@ -7,7 +7,7 @@ const CONFIG = {
   target: {
     date: '2026-07-17',
     bf:   14.8,
-    startBf: 16.5,
+    startBf: 17.6,
   },
   macros: {
     workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
@@ -60,11 +60,28 @@ function daysBetween(a, b) {
   return Math.floor((new Date(b) - new Date(a)) / 86400000);
 }
 
+// ───────── Animation helper ─────────
+function animateNumber(el, to, opts = {}) {
+  const { decimals = 0, suffix = '', duration = 800 } = opts;
+  const from = parseFloat(String(el.dataset.value || '0')) || 0;
+  el.dataset.value = String(to);
+  const start = performance.now();
+  function tick(now) {
+    const t = Math.min(1, (now - start) / duration);
+    // ease-out cubic
+    const eased = 1 - Math.pow(1 - t, 3);
+    const v = from + (to - from) * eased;
+    el.textContent = v.toFixed(decimals) + suffix;
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
 // ───────── 1. Hero ─────────
 function renderHero(daily) {
   const today = toYMD(nowKST());
   const dDay = daysBetween(today, CONFIG.target.date);
-  $('dDay').textContent = dDay >= 0 ? `${dDay}` : '0';
+  animateNumber($('dDay'), Math.max(0, dDay), { decimals: 0 });
 
   // latest BF
   const sorted = [...daily].sort((a, b) => (a.date < b.date ? 1 : -1));
@@ -72,22 +89,23 @@ function renderHero(daily) {
   const bf = latest?.bf;
 
   if (bf != null) {
-    $('currentBf').textContent = `${bf.toFixed(1)}%`;
-    const delta = bf - CONFIG.target.bf;
-    $('bfDelta').textContent = delta > 0 ? `목표까지 -${delta.toFixed(1)}%p` : `목표 달성 +${Math.abs(delta).toFixed(1)}%p`;
+    animateNumber($('currentBf'), bf, { decimals: 1, suffix: '%' });
 
-    // progress 16.5 → 14.8
+    // progress 17.6 → 14.8
     const total = CONFIG.target.startBf - CONFIG.target.bf;
     const done  = CONFIG.target.startBf - bf;
     const pct   = Math.max(0, Math.min(100, (done / total) * 100));
     $('progressFill').style.width = `${pct}%`;
-    $('progressPct').textContent  = `${pct.toFixed(0)}%`;
+    animateNumber($('progressPct'), pct, { decimals: 0, suffix: '% 완료' });
   } else {
     $('currentBf').textContent = '—';
+    $('progressPct').textContent = '—';
   }
 
-  // last updated
-  $('lastUpdated').textContent = `UPDATED ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`;
+  // last updated (HH:MM only, in Korean)
+  const now = new Date();
+  const time = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
+  $('lastUpdated').textContent = `업데이트 ${time}`;
 }
 
 // ───────── 2. Workout heatmap ─────────
@@ -290,7 +308,7 @@ function renderBfChart(daily, inbody) {
     return ib ? d.bf : null;
   });
 
-  Chart.defaults.font.family = "'Geist Mono', monospace";
+  Chart.defaults.font.family = "'Pretendard Variable', sans-serif";
   Chart.defaults.color = '#8E8E93';
 
   bfChart = new Chart(ctx, {
@@ -337,8 +355,8 @@ function renderBfChart(daily, inbody) {
           backgroundColor: '#1A1A1E',
           borderColor: '#26262A',
           borderWidth: 1,
-          titleFont: { family: "'Geist Mono', monospace", size: 10 },
-          bodyFont:  { family: "'Geist Mono', monospace", size: 11 },
+          titleFont: { family: "'Pretendard Variable', sans-serif", size: 10 },
+          bodyFont:  { family: "'Pretendard Variable', sans-serif", size: 11 },
           padding: 10,
           callbacks: {
             label: (ctx) => {
@@ -466,7 +484,7 @@ function renderWeekCharts(meals, workouts) {
         legend: { display: false },
         title: {
           display: true, text: '일일 칼로리',
-          font: { family: "'Geist Mono', monospace", size: 10, weight: 500 },
+          font: { family: "'Pretendard Variable', sans-serif", size: 10, weight: 500 },
           color: '#8E8E93', align: 'start', padding: { bottom: 8 },
         },
         tooltip: { backgroundColor: '#1A1A1E', borderColor: '#26262A', borderWidth: 1 },
@@ -498,7 +516,7 @@ function renderWeekCharts(meals, workouts) {
         legend: { display: false },
         title: {
           display: true, text: '단백질 (g) · 목표 165g',
-          font: { family: "'Geist Mono', monospace", size: 10, weight: 500 },
+          font: { family: "'Pretendard Variable', sans-serif", size: 10, weight: 500 },
           color: '#8E8E93', align: 'start', padding: { bottom: 8 },
         },
         tooltip: { backgroundColor: '#1A1A1E', borderColor: '#26262A', borderWidth: 1 },
