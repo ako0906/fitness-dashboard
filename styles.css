@@ -296,42 +296,100 @@ button { font: inherit; cursor: pointer; }
   border-radius: 3px;
   background: var(--surface-2);
   cursor: pointer;
-  transition: outline 0.1s;
+  transition: transform var(--t-fast) var(--ease);
 }
-.heatmap-cell.empty  { background: var(--surface-2); }
+
+/* Broken ice for non-workout days */
+.heatmap-cell.empty {
+  background-color: var(--surface-2);
+  background-image: linear-gradient(135deg,
+    transparent 44%,
+    rgba(126, 138, 166, 0.10) 47%,
+    rgba(126, 138, 166, 0.10) 50%,
+    transparent 53%);
+  cursor: default;
+}
+
+/* All workout days share the ice color — intensity differs via opacity */
 .heatmap-cell.hockey,
 .heatmap-cell.weight,
 .heatmap-cell.cardio { background: var(--ice); }
-.heatmap-cell.rest   { background: var(--ice-soft); opacity: 0.3; }
-.heatmap-cell.future { background: transparent; }
-.heatmap-cell.today  {
-  outline: 1.5px solid var(--text);
-  outline-offset: 1px;
-  opacity: 1 !important;
-  z-index: 1;
-  position: relative;
+
+.heatmap-cell.rest {
+  background: var(--ice-soft);
+  opacity: 0.35;
 }
 
-.heatmap-cell[data-intensity="낮음"]     { opacity: 0.4; }
-.heatmap-cell[data-intensity="보통"]     { opacity: 0.65; }
-.heatmap-cell[data-intensity="높음"]     { opacity: 0.85; }
+.heatmap-cell.future {
+  background: transparent;
+  cursor: default;
+}
+
+/* Today: signature moment — pulsing ice ring */
+.heatmap-cell.today {
+  position: relative;
+  z-index: 2;
+  outline: none;
+  opacity: 1 !important;
+  box-shadow:
+    0 0 0 1.5px var(--ice),
+    0 0 12px rgba(168, 216, 240, 0.4);
+  animation: ice-pulse 2.4s var(--ease) infinite;
+}
+
+@keyframes ice-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 1.5px var(--ice),
+      0 0 6px rgba(168, 216, 240, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px var(--ice),
+      0 0 18px rgba(168, 216, 240, 0.55);
+  }
+}
+
+/* Tap interaction on tappable cells */
+.heatmap-cell.hockey:active,
+.heatmap-cell.weight:active,
+.heatmap-cell.cardio:active,
+.heatmap-cell.rest:active { transform: scale(0.8); }
+
+/* Intensity via opacity (workout cells only) */
+.heatmap-cell[data-intensity="낮음"]     { opacity: 0.45; }
+.heatmap-cell[data-intensity="보통"]     { opacity: 0.7; }
+.heatmap-cell[data-intensity="높음"]     { opacity: 0.88; }
 .heatmap-cell[data-intensity="매우높음"] { opacity: 1; }
 
+/* Legend */
 .legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
 }
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   border-radius: 2px;
   display: inline-block;
 }
-.dot-hockey, .dot-weight, .dot-cardio { background: var(--ice); }
-.dot-rest { background: var(--ice-soft); opacity: 0.4; }
+.dot-active { background: var(--ice); }
+.dot-broken {
+  background-color: var(--surface-2);
+  background-image: linear-gradient(135deg,
+    transparent 40%,
+    rgba(126, 138, 166, 0.35) 44%,
+    rgba(126, 138, 166, 0.35) 50%,
+    transparent 54%);
+}
+.dot-today {
+  background: var(--ice);
+  box-shadow: 0 0 0 1px var(--ice), 0 0 6px rgba(168, 216, 240, 0.6);
+}
 
+/* Chart line tokens (used in composition card) */
 .line-token { width: 14px; height: 2px; display: inline-block; }
 .line-weight   { background: var(--text); }
 .line-skeletal { background: var(--ice); }
@@ -339,11 +397,6 @@ button { font: inherit; cursor: pointer; }
 .line-target {
   background: linear-gradient(90deg, var(--mint) 0, var(--mint) 50%, transparent 50%, transparent 100%);
   background-size: 6px 2px;
-}
-
-.tap-info {
-  font-size: 10px;
-  color: var(--text-3);
 }
 
 /* ============================================
