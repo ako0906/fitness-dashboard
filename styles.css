@@ -416,42 +416,42 @@ button { font: inherit; cursor: pointer; }
 .metric-card {
   background: var(--surface-2);
   border-radius: var(--r-md);
-  padding: 12px 10px 10px;
+  padding: 14px 12px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
 }
 .metric-card .metric-label {
   font-size: 11px;
   color: var(--text-2);
-  letter-spacing: 0;
-  text-transform: none;
 }
 .metric-card .metric-num {
   font-family: var(--font-sans);
   font-weight: 600;
-  font-size: 22px;
+  font-size: 24px;
   line-height: 1;
   color: var(--text);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  margin-top: 2px;
 }
 .metric-card .metric-unit {
   font-size: 11px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--text-2);
   margin-left: 2px;
 }
 .metric-card .metric-delta {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: var(--text-2);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
 }
 .metric-card .metric-delta.good { color: var(--mint); }
 .metric-card .metric-delta.warn { color: var(--rose); }
-.sparkline-wrap { height: 20px; margin-top: 4px; }
+.sparkline-wrap { height: 22px; margin-top: 6px; }
 .sparkline-wrap svg {
   width: 100%; height: 100%; display: block; overflow: visible;
 }
@@ -461,17 +461,20 @@ button { font: inherit; cursor: pointer; }
   justify-content: space-between;
   align-items: baseline;
   border-top: 1px solid var(--border);
-  padding-top: 14px;
+  padding-top: 16px;
   margin-top: 4px;
 }
 .chart-sub-title {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text);
+  letter-spacing: -0.01em;
 }
 .chart-sub-meta {
   font-size: 11px;
   color: var(--mint);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 /* ============================================

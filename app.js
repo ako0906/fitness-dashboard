@@ -213,7 +213,7 @@ $('modal').addEventListener('click', e => {
 // ───────── 3. Composition (cards + BF chart) ─────────
 let bfChart;
 
-function makeSparkline(values, color = '#8E8E93') {
+function makeSparkline(values, color = '#7E8AA6') {
   const valid = values.filter(v => v != null);
   if (valid.length < 2) return '';
   const w = 100, h = 18;
@@ -275,7 +275,7 @@ function renderMetricCard(cardId, daily, key, unit, opts = {}) {
   const cutoff = addDays(today, -30);
   const recent = sorted.filter(d => new Date(d.date) >= cutoff);
   const values = recent.map(d => d[key]);
-  sparkEl.innerHTML = makeSparkline(values, opts.sparkColor || '#8E8E93');
+  sparkEl.innerHTML = makeSparkline(values, opts.sparkColor || '#7E8AA6');
 }
 
 function renderBfChart(daily, inbody) {
@@ -309,7 +309,7 @@ function renderBfChart(daily, inbody) {
   });
 
   Chart.defaults.font.family = "'Pretendard Variable', sans-serif";
-  Chart.defaults.color = '#8E8E93';
+  Chart.defaults.color = '#7E8AA6';
 
   bfChart = new Chart(ctx, {
     type: 'line',
@@ -319,8 +319,8 @@ function renderBfChart(daily, inbody) {
         {
           label: '체지방률 (7DMA)',
           data: bfMA,
-          borderColor: '#FF9F0A',
-          backgroundColor: 'rgba(255,159,10,0.06)',
+          borderColor: '#6FE0C2',
+          backgroundColor: 'rgba(111, 224, 194, 0.07)',
           borderWidth: 1.8,
           tension: 0.3,
           pointRadius: 0,
@@ -330,7 +330,7 @@ function renderBfChart(daily, inbody) {
           label: 'InBody',
           data: inbodyDots,
           borderColor: 'transparent',
-          backgroundColor: '#FF9F0A',
+          backgroundColor: '#B8B5F0',
           pointRadius: 4,
           pointHoverRadius: 6,
           showLine: false,
@@ -338,7 +338,7 @@ function renderBfChart(daily, inbody) {
         {
           label: '목표 14.8%',
           data: filtered.map(() => CONFIG.target.bf),
-          borderColor: 'rgba(255,159,10,0.5)',
+          borderColor: 'rgba(111, 224, 194, 0.45)',
           borderDash: [3, 3],
           borderWidth: 1,
           pointRadius: 0,
@@ -352,8 +352,8 @@ function renderBfChart(daily, inbody) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1A1A1E',
-          borderColor: '#26262A',
+          backgroundColor: '#1B2230',
+          borderColor: '#252D3F',
           borderWidth: 1,
           titleFont: { family: "'Pretendard Variable', sans-serif", size: 10 },
           bodyFont:  { family: "'Pretendard Variable', sans-serif", size: 11 },
@@ -370,11 +370,11 @@ function renderBfChart(daily, inbody) {
       scales: {
         x: {
           grid: { display: false },
-          ticks: { font: { size: 9 }, maxTicksLimit: 6 },
+          ticks: { font: { size: 9 }, color: '#4A536B', maxTicksLimit: 6 },
         },
         y: {
-          grid: { color: '#1F1F22', lineWidth: 0.5 },
-          ticks: { font: { size: 9 }, color: '#FF9F0A', callback: v => v.toFixed(1) + '%' },
+          grid: { color: '#252D3F', lineWidth: 0.5 },
+          ticks: { font: { size: 9 }, color: '#7E8AA6', callback: v => v.toFixed(1) + '%' },
           suggestedMin: CONFIG.target.bf - 0.5,
         },
       },
@@ -383,9 +383,9 @@ function renderBfChart(daily, inbody) {
 }
 
 function renderComposition(daily, inbody) {
-  renderMetricCard('card-weight',   daily, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#F5F5F7' });
-  renderMetricCard('card-skeletal', daily, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#0A84FF' });
-  renderMetricCard('card-bf',       daily, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#FF9F0A' });
+  renderMetricCard('card-weight',   daily, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
+  renderMetricCard('card-skeletal', daily, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#7E8AA6' });
+  renderMetricCard('card-bf',       daily, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
   renderBfChart(daily, inbody);
 }
 
