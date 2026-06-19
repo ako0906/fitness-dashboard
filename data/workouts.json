@@ -1,5 +1,16 @@
 [
   {
+    "id": "3848780f-9317-8170-8acb-dc1ffb6732b8",
+    "name": "6/18 하키",
+    "date": "2026-06-18",
+    "type": "하키",
+    "duration": 120,
+    "intensity": "매우높음",
+    "condition": null,
+    "appleKcal": 1077,
+    "note": "2시간 완주 / 활동 1077kcal"
+  },
+  {
     "id": "3828780f-9317-814c-b089-e22a4dfd833a",
     "name": "6/17 웨이트",
     "date": "2026-06-17",

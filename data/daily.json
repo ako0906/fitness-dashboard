@@ -1,12 +1,12 @@
 [
   {
-    "id": "3838780f-9317-81d5-ad99-e7e9282eaf4e",
-    "name": "2026-06-18",
-    "date": "2026-06-18",
-    "weight": 66.72,
-    "skeletal": 31.43,
-    "bf": 16.4,
-    "fatMass": 10.94,
+    "id": "3848780f-9317-813d-8a74-d3b3d83610c0",
+    "name": "2026-06-19",
+    "date": "2026-06-19",
+    "weight": 67.12,
+    "skeletal": 31.55,
+    "bf": 16.5,
+    "fatMass": 11.07,
     "totalProtein": null,
     "totalCarb": null,
     "totalFat": null,
@@ -14,6 +14,22 @@
     "drinking": false,
     "sleep": null,
     "notes": "진행중"
+  },
+  {
+    "id": "3838780f-9317-81d5-ad99-e7e9282eaf4e",
+    "name": "2026-06-18",
+    "date": "2026-06-18",
+    "weight": 66.72,
+    "skeletal": 31.43,
+    "bf": 16.4,
+    "fatMass": 10.94,
+    "totalProtein": 163,
+    "totalCarb": 200,
+    "totalFat": 46,
+    "totalKcal": 1844,
+    "drinking": false,
+    "sleep": null,
+    "notes": "하키 2h 1077kcal / 음주 X"
   },
   {
     "id": "3828780f-9317-8194-9cf4-fab9c7425ed7",
