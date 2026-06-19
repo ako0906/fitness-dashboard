@@ -261,14 +261,19 @@ function renderMetricCard(cardId, daily, key, unit, opts = {}) {
     if (new Date(r.date) <= target) prev = r;
     else break;
   }
-  if (!prev) prev = sorted[0];
 
-  const delta = latest[key] - prev[key];
-  const sign = delta > 0 ? '+' : '';
-  const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
-  const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
-  deltaEl.className = 'metric-delta' + (goodDir ? ' good' : badDir ? ' warn' : '');
-  deltaEl.textContent = Math.abs(delta) < 0.05 ? `±0 / 주` : `${sign}${delta.toFixed(decimals)} / 주`;
+  // If no record before target, we can't compute a true 7-day delta
+  if (!prev || prev === latest) {
+    deltaEl.textContent = '—';
+    deltaEl.className = 'metric-delta';
+  } else {
+    const delta = latest[key] - prev[key];
+    const sign = delta > 0 ? '+' : '';
+    const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
+    const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
+    deltaEl.className = 'metric-delta' + (goodDir ? ' good' : badDir ? ' warn' : '');
+    deltaEl.textContent = Math.abs(delta) < 0.05 ? `±0 / 주` : `${sign}${delta.toFixed(decimals)} / 주`;
+  }
 
   // sparkline: last 30 days (filling all daily slots)
   const today = nowKST(); today.setHours(0,0,0,0);
