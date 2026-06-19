@@ -7,13 +7,13 @@
     "skeletal": 31.55,
     "bf": 16.5,
     "fatMass": 11.07,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 160,
+    "totalCarb": 115,
+    "totalFat": 50,
+    "totalKcal": 1605,
     "drinking": false,
     "sleep": null,
-    "notes": "진행중"
+    "notes": "휴식일 / 음주 X / 7일 연속 금주"
   },
   {
     "id": "3838780f-9317-81d5-ad99-e7e9282eaf4e",
