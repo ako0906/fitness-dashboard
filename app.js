@@ -252,22 +252,24 @@ function renderMetricCard(cardId, daily, key, unit, opts = {}) {
   const decimals = (key === 'bf') ? 1 : 1;
   numEl.innerHTML = `${latest[key].toFixed(decimals)}<span class="metric-unit">${unit}</span>`;
 
-  // 7-day delta: compare latest to the value closest to 7 days before
+  // 7-day delta using moving averages (noise-resistant, matches the trend chart)
   const latestDate = new Date(latest.date);
-  const target = addDays(latestDate, -7);
-  // find closest record at-or-before target
-  let prev = null;
-  for (const r of sorted) {
-    if (new Date(r.date) <= target) prev = r;
-    else break;
-  }
+  const sevenAgo  = addDays(latestDate, -7);
+  const fourteenAgo = addDays(latestDate, -14);
 
-  // If no record before target, we can't compute a true 7-day delta
-  if (!prev || prev === latest) {
+  const inRange = (d, after, until) => {
+    const dt = new Date(d.date);
+    return dt > after && dt <= until;
+  };
+  const recent7 = sorted.filter(d => inRange(d, sevenAgo, latestDate));
+  const prev7   = sorted.filter(d => inRange(d, fourteenAgo, sevenAgo));
+
+  if (recent7.length === 0 || prev7.length === 0) {
     deltaEl.textContent = '—';
     deltaEl.className = 'metric-delta';
   } else {
-    const delta = latest[key] - prev[key];
+    const avg = arr => arr.reduce((s, d) => s + d[key], 0) / arr.length;
+    const delta = avg(recent7) - avg(prev7);
     const sign = delta > 0 ? '+' : '';
     const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
     const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
