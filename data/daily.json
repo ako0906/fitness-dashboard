@@ -1,5 +1,21 @@
 [
   {
+    "id": "3858780f-9317-81b2-b9b0-e365bbe1ffb6",
+    "name": "2026-06-20",
+    "date": "2026-06-20",
+    "weight": 66.25,
+    "skeletal": 31.2,
+    "bf": 16.2,
+    "fatMass": 10.73,
+    "totalProtein": null,
+    "totalCarb": null,
+    "totalFat": null,
+    "totalKcal": null,
+    "drinking": false,
+    "sleep": null,
+    "notes": "진행중"
+  },
+  {
     "id": "3848780f-9317-813d-8a74-d3b3d83610c0",
     "name": "2026-06-19",
     "date": "2026-06-19",
