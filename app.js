@@ -688,56 +688,58 @@ function renderWeekWeek(meals, workouts, daily) {
   const lastWeek = calc(lastWeekStart, lastWeekEnd);
 
   const fmt = (v, suffix='', decimals=0) => v == null ? '—' : `${v.toFixed(decimals)}${suffix}`;
-  const delta = (a, b, suffix='', decimals=1, lowerIsBetter=false) => {
-    if (a == null || b == null) return '';
+  const deltaInfo = (a, b, suffix='', decimals=1, lowerIsBetter=false) => {
+    if (a == null || b == null) return { text: '—', cls: '' };
     const d = a - b;
-    if (Math.abs(d) < 0.05) return `<span>±0</span>`;
+    if (Math.abs(d) < 0.05) return { text: '±0', cls: '' };
     const cls = lowerIsBetter ? (d < 0 ? 'ww-delta-up' : 'ww-delta-down')
                               : (d > 0 ? 'ww-delta-up' : 'ww-delta-down');
     const sign = d > 0 ? '+' : '';
-    return `<span class="${cls}">${sign}${d.toFixed(decimals)}${suffix}</span>`;
+    return { text: `${sign}${d.toFixed(decimals)}${suffix}`, cls };
   };
 
   const rows = [
     {
       label: '운동 횟수',
-      now: `${thisWeek.workoutCount}회`,
+      now:  `${thisWeek.workoutCount}회`,
       prev: `${lastWeek.workoutCount}회`,
-      delta: delta(thisWeek.workoutCount, lastWeek.workoutCount, '회', 0),
+      delta: deltaInfo(thisWeek.workoutCount, lastWeek.workoutCount, '회', 0),
     },
     {
       label: '단백질 평균',
-      now: `${Math.round(thisWeek.proteinAvg)}g`,
+      now:  `${Math.round(thisWeek.proteinAvg)}g`,
       prev: `${Math.round(lastWeek.proteinAvg)}g`,
-      delta: delta(thisWeek.proteinAvg, lastWeek.proteinAvg, 'g', 0),
+      delta: deltaInfo(thisWeek.proteinAvg, lastWeek.proteinAvg, 'g', 0),
     },
     {
-      label: 'BF% 평균',
-      now: fmt(thisWeek.bfAvg, '%', 1),
+      label: '체지방률 평균',
+      now:  fmt(thisWeek.bfAvg, '%', 1),
       prev: fmt(lastWeek.bfAvg, '%', 1),
-      delta: delta(thisWeek.bfAvg, lastWeek.bfAvg, '%p', 1, true),
+      delta: deltaInfo(thisWeek.bfAvg, lastWeek.bfAvg, '%p', 1, true),
     },
     {
       label: '음주 일수',
-      now: `${thisWeek.drinkDays}일`,
+      now:  `${thisWeek.drinkDays}일`,
       prev: `${lastWeek.drinkDays}일`,
-      delta: delta(thisWeek.drinkDays, lastWeek.drinkDays, '일', 0, true),
+      delta: deltaInfo(thisWeek.drinkDays, lastWeek.drinkDays, '일', 0, true),
     },
   ];
 
   $('wwGrid').innerHTML = `
-    <div class="ww-cell">
-      <span class="ww-label">이번주</span>
-      ${rows.map(r => `<div class="ww-row"><span>${r.label}</span><span>${r.now}</span></div>`).join('')}
+    <div class="ww-row ww-header">
+      <span></span>
+      <span>이번 주</span>
+      <span>지난주</span>
+      <span>변화</span>
     </div>
-    <div class="ww-cell">
-      <span class="ww-label">지난주</span>
-      ${rows.map(r => `<div class="ww-row"><span>${r.label}</span><span>${r.prev}</span></div>`).join('')}
-    </div>
-    <div class="ww-cell">
-      <span class="ww-label">변화</span>
-      ${rows.map(r => `<div class="ww-row"><span></span>${r.delta || '<span>—</span>'}</div>`).join('')}
-    </div>
+    ${rows.map(r => `
+      <div class="ww-row">
+        <span>${r.label}</span>
+        <span>${r.now}</span>
+        <span class="ww-prev">${r.prev}</span>
+        <span class="${r.delta.cls}">${r.delta.text}</span>
+      </div>
+    `).join('')}
   `;
 }
 
@@ -790,9 +792,9 @@ function renderInsights(daily, meals) {
 
   const items = [
     { label: '7일 평균 칼로리', value: `${Math.round(kcalAvg)} kcal`, cls: '' },
-    { label: '7일 평균 단백질', value: `${Math.round(proteinAvg)} g`, cls: proteinAvg >= 150 ? 'good' : 'warn' },
+    { label: '7일 평균 단백질', value: `${Math.round(proteinAvg)} g`, cls: proteinAvg >= 150 ? 'good' : '' },
     { label: '체지방률 추세',   value: paceText, cls: paceText.startsWith('-') ? 'good' : (paceText === '—' ? '' : 'warn') },
-    { label: '7/17 예측',       value: forecastText, cls: forecastCls },
+    { label: '7/17 예측 BF%',   value: forecastText, cls: forecastCls },
   ];
 
   $('insights').innerHTML = items.map(i => `
