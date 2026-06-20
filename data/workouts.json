@@ -5,10 +5,10 @@
     "date": "2026-06-20",
     "type": "하키",
     "duration": null,
-    "intensity": null,
+    "intensity": "매우높음",
     "condition": null,
-    "appleKcal": null,
-    "note": null
+    "appleKcal": 765,
+    "note": "활동 765kcal"
   },
   {
     "id": "3848780f-9317-8170-8acb-dc1ffb6732b8",
