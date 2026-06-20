@@ -577,25 +577,35 @@ function renderSober(daily) {
   const daysEl = $('soberDays');
   const metaEl = $('soberMeta');
 
+  // This month's drinking count (KST month)
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const thisMonthCount = daily.filter(d => {
+    if (!(d.drinking === true) || !d.date) return false;
+    return new Date(d.date.slice(0, 10)) >= monthStart;
+  }).length;
+
   if (!lastDrink) {
     daysEl.textContent = '∞';
     daysEl.dataset.value = '0';
-    metaEl.innerHTML = '기록된 음주일 없음';
+    metaEl.innerHTML = `이번 달 ${thisMonthCount}회 · 기록 없음`;
   } else {
     const days = daysBetween(lastDrink.date.slice(0, 10), toYMD(today));
     animateNumber(daysEl, days, { decimals: 0 });
 
-    // Milestone label (mint accent)
-    let milestone = '';
-    if (days >= 60)       milestone = '<span class="milestone">2개월 달성</span>';
-    else if (days >= 30)  milestone = '<span class="milestone">30일 달성</span>';
-    else if (days >= 14)  milestone = '<span class="milestone">2주 클린</span>';
-    else if (days >= 7)   milestone = '<span class="milestone">1주 클린</span>';
+    // Status segment: milestone hit OR countdown OR last-drink date
+    let status;
+    if (days >= 60)       status = `<span class="milestone">2개월 달성</span>`;
+    else if (days >= 30)  status = `<span class="milestone">30일 달성</span>`;
+    else if (days >= 14)  status = `<span class="milestone">2주 클린</span>`;
+    else if (days >= 7)   status = `<span class="milestone">1주 클린</span>`;
+    else if (days >= 4)   status = `1주까지 ${7 - days}일`;
+    else {
+      const [, m, d] = lastDrink.date.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
+      const md = m && d ? `${parseInt(m)}/${parseInt(d)}` : lastDrink.date.slice(5);
+      status = `마지막 ${md}`;
+    }
 
-    const md = lastDrink.date.slice(0, 10);
-    const [, m, d] = md.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
-    const pretty = m && d ? `${parseInt(m)}월 ${parseInt(d)}일` : md;
-    metaEl.innerHTML = `마지막 음주 ${pretty}${milestone}`;
+    metaEl.innerHTML = `이번 달 ${thisMonthCount}회 · ${status}`;
   }
 
   renderSoberDots(daily, today);
@@ -605,19 +615,20 @@ function renderSoberDots(daily, today) {
   const container = $('soberDots');
   if (!container) return;
 
-  // Build a map of date → drinking flag
+  // Map: date → drinking flag
   const drinkMap = new Map();
   for (const d of daily) {
     if (d.date) drinkMap.set(d.date.slice(0, 10), d.drinking === true);
   }
 
   let html = '';
-  for (let i = 6; i >= 0; i--) {
+  for (let i = 29; i >= 0; i--) {
     const day = addDays(today, -i);
     const ymd = toYMD(day);
     const drank = drinkMap.get(ymd);
     const isToday = i === 0;
-    const cls = drank === true ? 'drank' : drank === false ? 'clean' : '';
+    // 'empty' = no record that day; 'clean'/'drank' = recorded
+    const cls = drank === true ? 'drank' : drank === false ? 'clean' : 'empty';
     const todayCls = isToday ? ' today' : '';
     html += `<span class="streak-dot ${cls}${todayCls}"></span>`;
   }

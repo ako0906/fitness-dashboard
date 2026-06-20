@@ -575,23 +575,27 @@ button { font: inherit; cursor: pointer; }
 }
 .streak-dots {
   display: flex;
-  gap: 9px;
-  margin-top: 22px;
-  margin-bottom: 4px;
+  gap: 3px;
+  margin-top: 24px;
+  margin-bottom: 6px;
+  justify-content: center;
 }
 .streak-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--surface-2);
   transition: all var(--t-base) var(--ease);
+  flex-shrink: 0;
 }
-.streak-dot.clean { background: var(--ice); }
+.streak-dot.empty { background: var(--surface-2); opacity: 0.5; }
+.streak-dot.clean { background: var(--ice); opacity: 0.7; }
 .streak-dot.drank { background: var(--rose); }
 .streak-dot.today {
   box-shadow:
     0 0 0 1.5px var(--ice),
     0 0 8px rgba(168, 216, 240, 0.45);
+  opacity: 1 !important;
 }
 .streak-dot.today.drank {
   box-shadow:
