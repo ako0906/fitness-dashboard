@@ -48,6 +48,7 @@
           <span id="progressPct">—</span>
           <span class="progress-start">시작 17.6%</span>
         </div>
+        <div class="pace-line" id="paceLine"></div>
       </div>
 
       <div class="updated" id="lastUpdated">—</div>
@@ -60,6 +61,7 @@
         <span class="card-sub" id="gridSubtitle">최근 1년</span>
       </div>
       <div class="heatmap-wrap">
+        <div class="heatmap-months" id="heatmapMonths"></div>
         <div class="heatmap" id="heatmap"></div>
       </div>
       <div class="legend">
@@ -110,6 +112,7 @@
         <h2>오늘</h2>
         <span class="card-sub" id="todayType">—</span>
       </div>
+      <div class="meal-strip" id="mealStrip"></div>
       <div class="macro-grid" id="macroGrid">
         <!-- rings injected by JS -->
       </div>
@@ -159,6 +162,11 @@
       <div class="card-head">
         <h2>예측</h2>
         <span class="card-sub">현재 페이스 기준</span>
+      </div>
+      <div class="insight-hero">
+        <span class="insight-hero-label">7/17 예측 체지방률</span>
+        <span class="insight-hero-value" id="forecastBig">—</span>
+        <span class="insight-hero-meta" id="forecastMeta">—</span>
       </div>
       <div class="insights" id="insights">
         <!-- injected -->

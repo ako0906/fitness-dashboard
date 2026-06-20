@@ -8,12 +8,13 @@ const CONFIG = {
     date: '2026-07-17',
     bf:   14.8,
     startBf: 17.6,
+    startDate: '2026-05-26',
   },
   macros: {
     workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
     rest:    { kcal: 1600, carb: 110, protein: 165, fat: 55 },
   },
-  weights: ['하키', '웨이트', '스케이트'], // counted as workout days
+  weights: ['하키', '웨이트', '유산소'], // counted as workout days
 };
 
 const $ = (id) => document.getElementById(id);
@@ -79,8 +80,8 @@ function animateNumber(el, to, opts = {}) {
 
 // ───────── 1. Hero ─────────
 function renderHero(daily) {
-  const today = toYMD(nowKST());
-  const dDay = daysBetween(today, CONFIG.target.date);
+  const todayYmd = toYMD(nowKST());
+  const dDay = daysBetween(todayYmd, CONFIG.target.date);
   animateNumber($('dDay'), Math.max(0, dDay), { decimals: 0 });
 
   // latest BF
@@ -91,96 +92,151 @@ function renderHero(daily) {
   if (bf != null) {
     animateNumber($('currentBf'), bf, { decimals: 1, suffix: '%' });
 
-    // progress 17.6 → 14.8
+    // BF progress 17.6 → 14.8
     const total = CONFIG.target.startBf - CONFIG.target.bf;
     const done  = CONFIG.target.startBf - bf;
-    const pct   = Math.max(0, Math.min(100, (done / total) * 100));
-    $('progressFill').style.width = `${pct}%`;
-    animateNumber($('progressPct'), pct, { decimals: 0, suffix: '% 완료' });
+    const bfPct = Math.max(0, Math.min(100, (done / total) * 100));
+    $('progressFill').style.width = `${bfPct}%`;
+    animateNumber($('progressPct'), bfPct, { decimals: 0, suffix: '% 완료' });
+
+    // Time progress (start date → target date)
+    const totalDays  = daysBetween(CONFIG.target.startDate, CONFIG.target.date);
+    const passedDays = Math.max(0, daysBetween(CONFIG.target.startDate, todayYmd));
+    const timePct = Math.max(0, Math.min(100, (passedDays / totalDays) * 100));
+
+    // Pace: BF progress vs time progress
+    const paceDiff = bfPct - timePct;
+    const paceEl = $('paceLine');
+    if (Math.abs(paceDiff) < 5) {
+      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · 페이스 적절`;
+    } else if (paceDiff > 0) {
+      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · <span class="good">+${paceDiff.toFixed(0)}%p 앞섬</span>`;
+    } else {
+      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · <span class="warn">${paceDiff.toFixed(0)}%p 뒤짐</span>`;
+    }
   } else {
     $('currentBf').textContent = '—';
     $('progressPct').textContent = '—';
+    $('paceLine').textContent = '';
   }
 
-  // last updated (HH:MM only, in Korean)
+  // last updated (HH:MM only)
   const now = new Date();
   const time = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
   $('lastUpdated').textContent = `업데이트 ${time}`;
 }
 
 // ───────── 2. Workout heatmap ─────────
-function renderHeatmap(workouts) {
+function renderHeatmap(workouts, daily) {
   const wrap = $('heatmap');
+  const monthsEl = $('heatmapMonths');
   wrap.innerHTML = '';
+  monthsEl.innerHTML = '';
+
+  // Determine the start date: oldest record in workouts OR daily, OR CONFIG fallback
+  const all = [...workouts, ...daily].filter(r => r.date);
+  let oldestYmd = CONFIG.target.startDate;
+  for (const r of all) {
+    const ymd = r.date.slice(0, 10);
+    if (ymd < oldestYmd) oldestYmd = ymd;
+  }
+  const startDate = new Date(oldestYmd);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Align grid to the Sunday of the start week
+  const gridStart = new Date(startDate);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
 
   const today = nowKST();
   today.setHours(0, 0, 0, 0);
 
-  // last 53 weeks ending today
-  const end = new Date(today);
-  const start = addDays(end, -52 * 7 - end.getDay());
+  const daysSpan = Math.floor((today - gridStart) / 86400000);
+  const totalWeeks = Math.floor(daysSpan / 7) + 1;
 
-  // index workouts by date (latest entry wins)
+  // index workouts by date (priority: 하키 > 웨이트 > 유산소 > 휴식)
   const map = {};
   for (const w of workouts) {
     if (!w.date) continue;
     const ymd = w.date.slice(0, 10);
-    // priority: 하키 > 웨이트 > 유산소 > 휴식
     const priority = { '하키': 4, '웨이트': 3, '유산소': 2, '휴식': 1 };
     if (!map[ymd] || (priority[w.type] || 0) > (priority[map[ymd].type] || 0)) {
       map[ymd] = w;
     }
   }
 
-  // build cells
-  const totalWeeks = 53;
-  const cells = [];
+  // Build cells
   for (let w = 0; w < totalWeeks; w++) {
     for (let d = 0; d < 7; d++) {
-      const cellDate = addDays(start, w * 7 + d);
-      cells.push(cellDate);
+      const cellDate = addDays(gridStart, w * 7 + d);
+      const ymd = toYMD(cellDate);
+      const cell = document.createElement('div');
+      cell.className = 'heatmap-cell';
+      cell.dataset.date = ymd;
+
+      const isBeforeStart = cellDate < startDate;
+      const isToday  = cellDate.getTime() === today.getTime();
+      const isFuture = cellDate > today;
+
+      if (isBeforeStart || isFuture) {
+        cell.classList.add('future');
+      } else {
+        const rec = map[ymd];
+        if (rec) {
+          const typeClass = ({
+            '하키':   'hockey',
+            '웨이트': 'weight',
+            '유산소': 'cardio',
+            '휴식':   'rest',
+          })[rec.type] || 'rest';
+          cell.classList.add(typeClass);
+          if (rec.intensity) cell.dataset.intensity = rec.intensity;
+          cell.addEventListener('click', () => showWorkoutModal(rec, ymd));
+        } else {
+          cell.classList.add('empty');
+        }
+      }
+
+      if (isToday) cell.classList.add('today');
+      wrap.appendChild(cell);
     }
   }
 
-  // arrange so weeks are columns (CSS grid auto-flow column)
-  for (const date of cells) {
-    const ymd = toYMD(date);
-    const cell = document.createElement('div');
-    cell.className = 'heatmap-cell';
-    cell.dataset.date = ymd;
-
-    const isToday  = date.getTime() === today.getTime();
-    const isFuture = date > today;
-
-    if (isFuture) {
-      cell.classList.add('future');
-    } else {
-      const rec = map[ymd];
-      if (rec) {
-        const typeClass = ({
-          '하키':   'hockey',
-          '웨이트': 'weight',
-          '유산소': 'cardio',
-          '휴식':   'rest',
-        })[rec.type] || 'rest';
-        cell.classList.add(typeClass);
-        if (rec.intensity) cell.dataset.intensity = rec.intensity;
-        cell.addEventListener('click', () => showWorkoutModal(rec, ymd));
-      } else {
-        cell.classList.add('empty');
+  // Month labels: for each week column, if it contains day-1 (and not before startDate), show label
+  for (let w = 0; w < totalWeeks; w++) {
+    for (let d = 0; d < 7; d++) {
+      const cellDate = addDays(gridStart, w * 7 + d);
+      if (cellDate.getDate() === 1 && cellDate >= startDate && cellDate <= today) {
+        const month = cellDate.getMonth() + 1;
+        const span = document.createElement('span');
+        span.className = 'month-label';
+        span.style.gridColumn = `${w + 1}`;
+        span.textContent = `${month}월`;
+        monthsEl.appendChild(span);
+        break;
       }
     }
-
-    if (isToday) cell.classList.add('today');
-    wrap.appendChild(cell);
   }
 
-  // count
-  const last30 = Object.values(map).filter(w => {
-    const d = new Date(w.date);
-    return d >= addDays(today, -30) && d <= today && CONFIG.weights.includes(w.type) || w.type === '유산소';
+  // Stats: 30-day count + current workout streak
+  const last30 = Object.values(map).filter(rec => {
+    if (!rec.date) return false;
+    const d = new Date(rec.date.slice(0, 10));
+    const isWorkoutType = CONFIG.weights.includes(rec.type) || rec.type === '유산소';
+    return d >= addDays(today, -30) && d <= today && isWorkoutType;
   }).length;
-  $('gridSubtitle').textContent = `최근 30일 운동 ${last30}회`;
+
+  // Streak: consecutive recorded days (workout/rest both count) ending today or yesterday
+  let streak = 0;
+  const startOffset = map[toYMD(today)] ? 0 : 1;
+  for (let i = startOffset; i < 400; i++) {
+    const ymd = toYMD(addDays(today, -i));
+    if (map[ymd]) streak++;
+    else break;
+  }
+
+  $('gridSubtitle').textContent = streak > 1
+    ? `최근 30일 ${last30}회 · ${streak}일 연속`
+    : `최근 30일 ${last30}회`;
 
   // auto-scroll to today (rightmost)
   const scrollWrap = document.querySelector('.heatmap-wrap');
@@ -307,6 +363,13 @@ function renderBfChart(daily, inbody) {
 
   const bfMA = movAvg(filtered, 'bf');
 
+  // Find last non-null index — only that point gets a dot (current position)
+  let lastValidIdx = -1;
+  for (let i = bfMA.length - 1; i >= 0; i--) {
+    if (bfMA[i] != null) { lastValidIdx = i; break; }
+  }
+  const pointRadii = bfMA.map((_, i) => i === lastValidIdx ? 4 : 0);
+
   // inbody markers
   const inbodyDots = filtered.map(d => {
     const ib = inbody.find(i => i.date && i.date.slice(0, 10) === d.date.slice(0, 10));
@@ -328,7 +391,10 @@ function renderBfChart(daily, inbody) {
           backgroundColor: 'rgba(111, 224, 194, 0.07)',
           borderWidth: 1.8,
           tension: 0.3,
-          pointRadius: 0,
+          pointRadius: pointRadii,
+          pointBackgroundColor: '#6FE0C2',
+          pointBorderColor: '#0A0E16',
+          pointBorderWidth: 2,
           fill: true,
         },
         {
@@ -446,6 +512,18 @@ function renderTodayMacros(meals, workouts) {
         <span class="ring-sub">/ ${r.target}${r.unit}</span>
       </div>
     `;
+  }).join('');
+
+  // Meal strip — which meals came in today
+  const slots = ['아침', '점심', '저녁', '간식'];
+  const seen = new Set();
+  for (const m of todayMeals) {
+    if (slots.includes(m.meal)) seen.add(m.meal);
+    else seen.add('간식'); // 운동전/운동후 → 간식
+  }
+  $('mealStrip').innerHTML = slots.map(s => {
+    const active = seen.has(s) ? ' active' : '';
+    return `<div class="meal-dot${active}"><span>${s}</span></div>`;
   }).join('');
 }
 
@@ -790,11 +868,32 @@ function renderInsights(daily, meals) {
     else forecastCls = 'warn';
   }
 
+  // Hero: 7/17 forecast (big)
+  const bigEl  = $('forecastBig');
+  const metaEl = $('forecastMeta');
+  if (forecastText !== '—') {
+    const predictedNum = parseFloat(forecastText);
+    animateNumber(bigEl, predictedNum, { decimals: 1, suffix: '%' });
+    bigEl.className = 'insight-hero-value ' + forecastCls;
+
+    const diff = predictedNum - CONFIG.target.bf;
+    if (diff <= 0) {
+      metaEl.innerHTML = `<span class="good">목표 달성 페이스</span>`;
+    } else if (diff <= 0.5) {
+      metaEl.textContent = `목표 대비 +${diff.toFixed(1)}%p 격차`;
+    } else {
+      metaEl.innerHTML = `<span class="warn">목표 대비 +${diff.toFixed(1)}%p 격차</span>`;
+    }
+  } else {
+    bigEl.textContent = '—';
+    bigEl.className = 'insight-hero-value';
+    metaEl.textContent = '데이터 부족';
+  }
+
   const items = [
     { label: '7일 평균 칼로리', value: `${Math.round(kcalAvg)} kcal`, cls: '' },
     { label: '7일 평균 단백질', value: `${Math.round(proteinAvg)} g`, cls: proteinAvg >= 150 ? 'good' : '' },
     { label: '체지방률 추세',   value: paceText, cls: paceText.startsWith('-') ? 'good' : (paceText === '—' ? '' : 'warn') },
-    { label: '7/17 예측 BF%',   value: forecastText, cls: forecastCls },
   ];
 
   $('insights').innerHTML = items.map(i => `
@@ -809,7 +908,7 @@ function renderInsights(daily, meals) {
 async function render() {
   const data = await loadAll();
   renderHero(data.daily);
-  renderHeatmap(data.workouts);
+  renderHeatmap(data.workouts, data.daily);
   renderComposition(data.daily, data.inbody);
   renderTodayMacros(data.meals, data.workouts);
   renderWeekCharts(data.meals, data.workouts);
@@ -818,6 +917,43 @@ async function render() {
   renderInsights(data.daily, data.meals);
 }
 
-$('refreshBtn').addEventListener('click', () => render());
+function resetAnimations() {
+  // Count-up animations: reset to 0
+  document.querySelectorAll('[data-value]').forEach(el => {
+    el.dataset.value = '0';
+  });
+
+  // Progress bar
+  const fill = $('progressFill');
+  if (fill) {
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
+    void fill.offsetHeight;
+    fill.style.transition = '';
+  }
+
+  // Ring strokes — back to fully empty
+  document.querySelectorAll('.ring-fg').forEach(el => {
+    const dasharray = el.getAttribute('stroke-dasharray');
+    if (dasharray) {
+      el.style.transition = 'none';
+      el.setAttribute('stroke-dashoffset', dasharray);
+      void el.getBoundingClientRect();
+      el.style.transition = '';
+    }
+  });
+
+  // Card stagger re-run
+  document.querySelectorAll('.hero, .card').forEach(el => {
+    el.style.animation = 'none';
+    void el.offsetHeight;
+    el.style.animation = '';
+  });
+}
+
+$('refreshBtn').addEventListener('click', () => {
+  resetAnimations();
+  render();
+});
 
 render();
