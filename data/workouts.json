@@ -1,5 +1,16 @@
 [
   {
+    "id": "3858780f-9317-80d6-9862-d1ba10b6bd5a",
+    "name": "6/20 하키",
+    "date": "2026-06-20",
+    "type": "하키",
+    "duration": null,
+    "intensity": null,
+    "condition": null,
+    "appleKcal": null,
+    "note": null
+  },
+  {
     "id": "3848780f-9317-8170-8acb-dc1ffb6732b8",
     "name": "6/18 하키",
     "date": "2026-06-18",
@@ -19,7 +30,7 @@
     "intensity": "높음",
     "condition": null,
     "appleKcal": 442,
-    "note": null
+    "note": "가슴+팔"
   },
   {
     "id": "3818780f-9317-8172-bd83-dc87b9b78f13",
@@ -41,7 +52,7 @@
     "intensity": "높음",
     "condition": null,
     "appleKcal": 399,
-    "note": null
+    "note": "등+어깨"
   },
   {
     "id": "37c8780f-9317-8152-868e-e18a7028e864",
