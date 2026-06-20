@@ -552,27 +552,63 @@ button { font: inherit; cursor: pointer; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 0 4px;
+  gap: 0;
+  padding: 14px 0 8px;
 }
 .sober-num {
   font-family: var(--font-sans);
-  font-size: 56px;
+  font-size: 64px;
   font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 0 24px rgba(168, 216, 240, 0.18),
+    0 0 48px rgba(168, 216, 240, 0.06);
 }
-.sober-label {
-  font-size: 11px;
+.sober-unit {
+  font-size: 12px;
   color: var(--text-2);
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+}
+.streak-dots {
+  display: flex;
+  gap: 9px;
+  margin-top: 22px;
+  margin-bottom: 4px;
+}
+.streak-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  transition: all var(--t-base) var(--ease);
+}
+.streak-dot.clean { background: var(--ice); }
+.streak-dot.drank { background: var(--rose); }
+.streak-dot.today {
+  box-shadow:
+    0 0 0 1.5px var(--ice),
+    0 0 8px rgba(168, 216, 240, 0.45);
+}
+.streak-dot.today.drank {
+  box-shadow:
+    0 0 0 1.5px var(--rose),
+    0 0 8px rgba(232, 155, 176, 0.45);
 }
 .sober-meta {
   font-family: var(--font-mono);
   font-size: 10px;
   color: var(--text-3);
-  margin-top: 4px;
+  margin-top: 10px;
+}
+.sober-meta .milestone {
+  color: var(--mint);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  margin-left: 6px;
 }
 
 /* ============================================
