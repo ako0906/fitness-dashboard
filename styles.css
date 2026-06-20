@@ -483,41 +483,67 @@ button { font: inherit; cursor: pointer; }
 .macro-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 6px;
 }
 .ring {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 14px 6px 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
-.ring-svg { width: 56px; height: 56px; transform: rotate(-90deg); }
-.ring-bg { fill: none; stroke: var(--surface-2); stroke-width: 4; }
+.ring-svg {
+  width: 54px;
+  height: 54px;
+  transform: rotate(-90deg);
+}
+.ring-bg { fill: none; stroke: var(--surface); stroke-width: 4.5; }
 .ring-fg {
   fill: none;
   stroke: var(--text);
-  stroke-width: 4;
+  stroke-width: 4.5;
   stroke-linecap: round;
-  transition: stroke-dashoffset 0.8s var(--ease);
+  transition: stroke-dashoffset 1s var(--ease);
 }
 .ring-fg.warn { stroke: var(--rose); }
 .ring-fg.good { stroke: var(--mint); }
-.ring-label {
-  font-size: 10px;
-  color: var(--text-2);
+.ring-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 .ring-value {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 .ring-sub {
   font-family: var(--font-mono);
   font-size: 9px;
   color: var(--text-3);
+  letter-spacing: 0;
 }
+.ring-label {
+  font-size: 10px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.ring-unit {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-left: 1px;
+}
+
+/* Workout-day accent on today card subtitle */
+.card-sub.status-workout { color: var(--ice); }
 
 /* ============================================
    Sober streak
