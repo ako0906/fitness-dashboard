@@ -2,7 +2,7 @@ name: Sync Notion → Dashboard
 
 on:
   schedule:
-    - cron: '0 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
