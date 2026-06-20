@@ -252,24 +252,22 @@ function renderMetricCard(cardId, daily, key, unit, opts = {}) {
   const decimals = (key === 'bf') ? 1 : 1;
   numEl.innerHTML = `${latest[key].toFixed(decimals)}<span class="metric-unit">${unit}</span>`;
 
-  // 7-day delta using moving averages (noise-resistant, matches the trend chart)
+  // 7-day delta: compare latest to most recent record at-or-before (latest - 7d).
+  // If exactly 7 days ago is missing, falls back to 8, 9, 10... days ago automatically.
   const latestDate = new Date(latest.date);
-  const sevenAgo  = addDays(latestDate, -7);
-  const fourteenAgo = addDays(latestDate, -14);
+  const sevenAgo = addDays(latestDate, -7);
 
-  const inRange = (d, after, until) => {
-    const dt = new Date(d.date);
-    return dt > after && dt <= until;
-  };
-  const recent7 = sorted.filter(d => inRange(d, sevenAgo, latestDate));
-  const prev7   = sorted.filter(d => inRange(d, fourteenAgo, sevenAgo));
+  let prev = null;
+  for (const r of sorted) {
+    if (new Date(r.date) <= sevenAgo) prev = r;
+    else break;
+  }
 
-  if (recent7.length === 0 || prev7.length === 0) {
+  if (!prev || prev === latest) {
     deltaEl.textContent = '—';
     deltaEl.className = 'metric-delta';
   } else {
-    const avg = arr => arr.reduce((s, d) => s + d[key], 0) / arr.length;
-    const delta = avg(recent7) - avg(prev7);
+    const delta = latest[key] - prev[key];
     const sign = delta > 0 ? '+' : '';
     const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
     const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
@@ -417,10 +415,10 @@ function renderTodayMacros(meals, workouts) {
   }), { kcal: 0, carb: 0, protein: 0, fat: 0 });
 
   const rings = [
-    { key: 'kcal',    label: '칼로리', value: total.kcal,    target: target.kcal,    unit: '' },
-    { key: 'carb',    label: '탄수',   value: total.carb,    target: target.carb,    unit: 'g' },
-    { key: 'protein', label: '단백',   value: total.protein, target: target.protein, unit: 'g' },
-    { key: 'fat',     label: '지방',   value: total.fat,     target: target.fat,     unit: 'g' },
+    { key: 'kcal',    label: '칼로리',   value: total.kcal,    target: target.kcal,    unit: '' },
+    { key: 'carb',    label: '탄수화물', value: total.carb,    target: target.carb,    unit: 'g' },
+    { key: 'protein', label: '단백질',   value: total.protein, target: target.protein, unit: 'g' },
+    { key: 'fat',     label: '지방',     value: total.fat,     target: target.fat,     unit: 'g' },
   ];
 
   $('macroGrid').innerHTML = rings.map(r => {
@@ -472,8 +470,25 @@ function renderWeekCharts(meals, workouts) {
     });
   }
 
-  const kcalColors = days.map(d => d.isWorkout ? '#0A84FF' : '#48484A');
-  const proteinColors = days.map(d => d.protein >= 150 ? '#30D158' : '#FF9F0A');
+  // Colors: workout day = ice, rest day = subtle surface tone
+  const kcalColors    = days.map(d => d.isWorkout ? '#A8D8F0' : '#3A4358');
+  // Protein: hits 150g target = mint, miss = muted gray
+  const proteinColors = days.map(d => d.protein >= 150 ? '#6FE0C2' : '#3A4358');
+
+  const commonTitleFont = { family: "'Pretendard Variable', sans-serif", size: 11, weight: 500 };
+  const commonTooltip = {
+    backgroundColor: '#1B2230',
+    borderColor: '#252D3F',
+    borderWidth: 1,
+    titleFont: { family: "'Pretendard Variable', sans-serif", size: 10 },
+    bodyFont:  { family: "'Pretendard Variable', sans-serif", size: 11 },
+    padding: 10,
+  };
+  const commonXAxis = {
+    grid: { display: false },
+    ticks: { font: { size: 10 }, color: '#7E8AA6' },
+  };
+  const commonGridColor = '#252D3F';
 
   // kcal
   if (kcalChart) kcalChart.destroy();
@@ -482,10 +497,11 @@ function renderWeekCharts(meals, workouts) {
     data: {
       labels: days.map(d => d.label),
       datasets: [{
-        label: 'KCAL',
+        label: '칼로리',
         data: days.map(d => d.kcal),
         backgroundColor: kcalColors,
-        borderRadius: 3,
+        borderRadius: 4,
+        maxBarThickness: 28,
       }],
     },
     options: {
@@ -495,14 +511,20 @@ function renderWeekCharts(meals, workouts) {
         legend: { display: false },
         title: {
           display: true, text: '일일 칼로리',
-          font: { family: "'Pretendard Variable', sans-serif", size: 10, weight: 500 },
-          color: '#8E8E93', align: 'start', padding: { bottom: 8 },
+          font: commonTitleFont,
+          color: '#E8EDF7', align: 'start', padding: { bottom: 10 },
         },
-        tooltip: { backgroundColor: '#1A1A1E', borderColor: '#26262A', borderWidth: 1 },
+        tooltip: commonTooltip,
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 9 } } },
-        y: { grid: { color: '#1F1F22', lineWidth: 0.5 }, ticks: { font: { size: 9 }, callback: v => v >= 1000 ? (v/1000)+'k' : v } },
+        x: commonXAxis,
+        y: {
+          grid: { color: commonGridColor, lineWidth: 0.5 },
+          ticks: {
+            font: { size: 9 }, color: '#7E8AA6',
+            callback: v => v >= 1000 ? (v/1000)+'k' : v,
+          },
+        },
       },
     },
   });
@@ -514,10 +536,11 @@ function renderWeekCharts(meals, workouts) {
     data: {
       labels: days.map(d => d.label),
       datasets: [{
-        label: 'PROT',
+        label: '단백질',
         data: days.map(d => d.protein),
         backgroundColor: proteinColors,
-        borderRadius: 3,
+        borderRadius: 4,
+        maxBarThickness: 28,
       }],
     },
     options: {
@@ -526,17 +549,17 @@ function renderWeekCharts(meals, workouts) {
       plugins: {
         legend: { display: false },
         title: {
-          display: true, text: '단백질 (g) · 목표 165g',
-          font: { family: "'Pretendard Variable', sans-serif", size: 10, weight: 500 },
-          color: '#8E8E93', align: 'start', padding: { bottom: 8 },
+          display: true, text: '단백질 · 목표 165g',
+          font: commonTitleFont,
+          color: '#E8EDF7', align: 'start', padding: { bottom: 10 },
         },
-        tooltip: { backgroundColor: '#1A1A1E', borderColor: '#26262A', borderWidth: 1 },
+        tooltip: commonTooltip,
       },
       scales: {
-        x: { grid: { display: false }, ticks: { font: { size: 9 } } },
+        x: commonXAxis,
         y: {
-          grid: { color: '#1F1F22', lineWidth: 0.5 },
-          ticks: { font: { size: 9 } },
+          grid: { color: commonGridColor, lineWidth: 0.5 },
+          ticks: { font: { size: 9 }, color: '#7E8AA6' },
           suggestedMax: 200,
         },
       },
