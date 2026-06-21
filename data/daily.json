@@ -7,13 +7,13 @@
     "skeletal": 31.12,
     "bf": 16,
     "fatMass": 10.55,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 168,
+    "totalCarb": 176,
+    "totalFat": 61,
+    "totalKcal": 1914,
     "drinking": false,
     "sleep": null,
-    "notes": "웨이트 예정 / 음주 X / 진행중"
+    "notes": "루프밴드 홈트 30분 / 음주 X / 9일 연속 금주"
   },
   {
     "id": "3858780f-9317-81b2-b9b0-e365bbe1ffb6",
