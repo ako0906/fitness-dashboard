@@ -16,6 +16,22 @@
     "notes": "진행중"
   },
   {
+    "id": "3878780f-9317-81a0-bcb1-ed69d5154693",
+    "name": "2026-06-22",
+    "date": "2026-06-22",
+    "weight": null,
+    "skeletal": null,
+    "bf": null,
+    "fatMass": null,
+    "totalProtein": 137,
+    "totalCarb": 186,
+    "totalFat": 40,
+    "totalKcal": 1574,
+    "drinking": false,
+    "sleep": null,
+    "notes": "웨이트 387kcal / 음주 X / 아침 결식"
+  },
+  {
     "id": "3868780f-9317-81af-a951-fcf13e993df5",
     "name": "2026-06-21",
     "date": "2026-06-21",
