@@ -356,29 +356,13 @@ button { font: inherit; cursor: pointer; }
   cursor: default;
 }
 
-/* Today: signature moment — pulsing ice ring */
+/* Today: signature moment — clean white outline */
 .heatmap-cell.today {
   position: relative;
   z-index: 2;
-  outline: none;
+  outline: 1.5px solid var(--text);
+  outline-offset: 1px;
   opacity: 1 !important;
-  box-shadow:
-    0 0 0 1.5px var(--ice),
-    0 0 12px rgba(168, 216, 240, 0.4);
-  animation: ice-pulse 2.4s var(--ease) infinite;
-}
-
-@keyframes ice-pulse {
-  0%, 100% {
-    box-shadow:
-      0 0 0 1.5px var(--ice),
-      0 0 6px rgba(168, 216, 240, 0.3);
-  }
-  50% {
-    box-shadow:
-      0 0 0 2px var(--ice),
-      0 0 18px rgba(168, 216, 240, 0.55);
-  }
 }
 
 /* Tap interaction on tappable cells */
@@ -417,7 +401,7 @@ button { font: inherit; cursor: pointer; }
 }
 .dot-today {
   background: var(--ice);
-  box-shadow: 0 0 0 1px var(--ice), 0 0 6px rgba(168, 216, 240, 0.6);
+  outline: 1.5px solid var(--text);
 }
 
 /* Chart line tokens (used in composition card) */

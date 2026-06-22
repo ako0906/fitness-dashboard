@@ -8,7 +8,7 @@ const CONFIG = {
     date: '2026-07-17',
     bf:   14.8,
     startBf: 17.6,
-    startDate: '2026-05-26',
+    startDate: '2026-05-29',
   },
   macros: {
     workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
@@ -133,18 +133,19 @@ function renderHeatmap(workouts, daily) {
   wrap.innerHTML = '';
   monthsEl.innerHTML = '';
 
-  // Determine the start date: oldest record in workouts OR daily, OR CONFIG fallback
+  // Oldest record date (from workouts/daily, or CONFIG fallback)
   const all = [...workouts, ...daily].filter(r => r.date);
   let oldestYmd = CONFIG.target.startDate;
   for (const r of all) {
     const ymd = r.date.slice(0, 10);
     if (ymd < oldestYmd) oldestYmd = ymd;
   }
-  const startDate = new Date(oldestYmd);
-  startDate.setHours(0, 0, 0, 0);
+  const recordStart = new Date(oldestYmd);
+  recordStart.setHours(0, 0, 0, 0);
 
-  // Align grid to the Sunday of the start week
-  const gridStart = new Date(startDate);
+  // Show the FULL starting month: align grid to the Sunday of (1st of that month)
+  const monthStart = new Date(recordStart.getFullYear(), recordStart.getMonth(), 1);
+  const gridStart = new Date(monthStart);
   gridStart.setDate(gridStart.getDate() - gridStart.getDay());
 
   const today = nowKST();
@@ -173,13 +174,14 @@ function renderHeatmap(workouts, daily) {
       cell.className = 'heatmap-cell';
       cell.dataset.date = ymd;
 
-      const isBeforeStart = cellDate < startDate;
+      const isBeforeMonth = cellDate < monthStart;  // 시작 월 이전 → 그리드 미표시
       const isToday  = cellDate.getTime() === today.getTime();
       const isFuture = cellDate > today;
 
-      if (isBeforeStart || isFuture) {
-        cell.classList.add('future');
+      if (isBeforeMonth || isFuture) {
+        cell.classList.add('future');  // transparent
       } else {
+        // Within starting month or later, but possibly before records started
         const rec = map[ymd];
         if (rec) {
           const typeClass = ({
@@ -192,7 +194,7 @@ function renderHeatmap(workouts, daily) {
           if (rec.intensity) cell.dataset.intensity = rec.intensity;
           cell.addEventListener('click', () => showWorkoutModal(rec, ymd));
         } else {
-          cell.classList.add('empty');
+          cell.classList.add('empty');  // broken-ice 빈 셀
         }
       }
 
@@ -201,11 +203,11 @@ function renderHeatmap(workouts, daily) {
     }
   }
 
-  // Month labels: for each week column, if it contains day-1 (and not before startDate), show label
+  // Month labels: each month's 1st in grid (including the starting month)
   for (let w = 0; w < totalWeeks; w++) {
     for (let d = 0; d < 7; d++) {
       const cellDate = addDays(gridStart, w * 7 + d);
-      if (cellDate.getDate() === 1 && cellDate >= startDate && cellDate <= today) {
+      if (cellDate.getDate() === 1 && cellDate >= monthStart && cellDate <= today) {
         const month = cellDate.getMonth() + 1;
         const span = document.createElement('span');
         span.className = 'month-label';
@@ -217,7 +219,7 @@ function renderHeatmap(workouts, daily) {
     }
   }
 
-  // Stats: 30-day count + current workout streak
+  // Stats: 30-day count + current streak
   const last30 = Object.values(map).filter(rec => {
     if (!rec.date) return false;
     const d = new Date(rec.date.slice(0, 10));
@@ -225,7 +227,6 @@ function renderHeatmap(workouts, daily) {
     return d >= addDays(today, -30) && d <= today && isWorkoutType;
   }).length;
 
-  // Streak: consecutive recorded days (workout/rest both count) ending today or yesterday
   let streak = 0;
   const startOffset = map[toYMD(today)] ? 0 : 1;
   for (let i = startOffset; i < 400; i++) {
