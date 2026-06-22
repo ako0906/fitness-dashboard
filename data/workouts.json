@@ -1,14 +1,14 @@
 [
   {
-    "id": "3868780f-9317-81aa-b0ee-d9df2dd0069e",
-    "name": "6/21 웨이트",
-    "date": "2026-06-21",
+    "id": "3878780f-9317-8151-8786-e8873d783681",
+    "name": "6/22 웨이트",
+    "date": "2026-06-22",
     "type": "웨이트",
-    "duration": 30,
+    "duration": null,
     "intensity": null,
     "condition": null,
     "appleKcal": null,
-    "note": "루프밴드 홈트 30분 가볍게 / 헬스장 정기휴무일"
+    "note": "예정"
   },
   {
     "id": "3858780f-9317-80d6-9862-d1ba10b6bd5a",
