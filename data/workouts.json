@@ -4,11 +4,11 @@
     "name": "6/23 하키",
     "date": "2026-06-23",
     "type": "하키",
-    "duration": null,
-    "intensity": null,
+    "duration": 83,
+    "intensity": "높음",
     "condition": null,
-    "appleKcal": null,
-    "note": "예정"
+    "appleKcal": 874,
+    "note": "활동 874kcal"
   },
   {
     "id": "3878780f-9317-8151-8786-e8873d783681",
