@@ -7,13 +7,13 @@
     "skeletal": 31.17,
     "bf": 16,
     "fatMass": 10.54,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 154,
+    "totalCarb": 190,
+    "totalFat": 53,
+    "totalKcal": 1850,
     "drinking": false,
     "sleep": null,
-    "notes": "진행중"
+    "notes": "하키(워치 중단) / 음주 X"
   },
   {
     "id": "3888780f-9317-818b-b542-db0e5501c1a7",
