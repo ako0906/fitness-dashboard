@@ -7,13 +7,13 @@
     "skeletal": 31.24,
     "bf": 16.1,
     "fatMass": 10.65,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 169,
+    "totalCarb": 245,
+    "totalFat": 58,
+    "totalKcal": 2402,
     "drinking": false,
     "sleep": null,
-    "notes": "진행중"
+    "notes": "하키 1000kcal / 음주 X / 휴가"
   },
   {
     "id": "3888780f-9317-816b-ac00-dbc831dfda8b",
