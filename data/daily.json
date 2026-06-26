@@ -7,13 +7,13 @@
     "skeletal": 31.14,
     "bf": 16,
     "fatMass": 10.56,
-    "totalProtein": null,
-    "totalCarb": null,
-    "totalFat": null,
-    "totalKcal": null,
+    "totalProtein": 159,
+    "totalCarb": 169,
+    "totalFat": 58,
+    "totalKcal": 1826,
     "drinking": false,
     "sleep": null,
-    "notes": "진행중"
+    "notes": "웨이트 436kcal / 음주 X"
   },
   {
     "id": "38a8780f-9317-81e0-82d4-d81328eb7b29",
