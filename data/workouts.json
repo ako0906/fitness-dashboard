@@ -1,5 +1,16 @@
 [
   {
+    "id": "38a8780f-9317-8170-9c80-e6ad611606a4",
+    "name": "6/26 웨이트",
+    "date": "2026-06-26",
+    "type": "웨이트",
+    "duration": null,
+    "intensity": null,
+    "condition": null,
+    "appleKcal": null,
+    "note": null
+  },
+  {
     "id": "38a8780f-9317-81db-81c6-e919c007916b",
     "name": "6/25 하키",
     "date": "2026-06-25",
