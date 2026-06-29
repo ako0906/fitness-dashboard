@@ -14,27 +14,91 @@ const CONFIG = {
     workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
     rest:    { kcal: 1600, carb: 110, protein: 165, fat: 55 },
   },
-  weights: ['하키', '웨이트', '유산소'], // counted as workout days
+  weights: ['하키', '웨이트', '스케이트'], // counted as workout days
 };
 
 const $ = (id) => document.getElementById(id);
 
 // ───────── Data loading ─────────
+// ───────── Supabase ─────────
+const SUPABASE_URL = 'https://vkiffowvbzxzsqrfoqov.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8Ld-0kVW2L9SmcjyqP7Teg_LYJutXYP';
+
 async function loadAll() {
-  const v = Date.now(); // cache-bust
-  const fetchJson = async (path) => {
+  const sb = async (path) => {
     try {
-      const r = await fetch(`${path}?v=${v}`);
-      if (!r.ok) return [];
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': `Bearer ${SUPABASE_KEY}`,
+        },
+      });
+      if (!r.ok) {
+        console.error('Supabase fetch failed:', path, r.status, await r.text());
+        return [];
+      }
       return await r.json();
-    } catch { return []; }
+    } catch (e) {
+      console.error('Supabase fetch error:', path, e);
+      return [];
+    }
   };
-  const [meals, workouts, daily, inbody] = await Promise.all([
-    fetchJson('data/meals.json'),
-    fetchJson('data/workouts.json'),
-    fetchJson('data/daily.json'),
-    fetchJson('data/inbody.json'),
+
+  const [mealsRaw, workoutsRaw, dailyRaw, inbodyRaw] = await Promise.all([
+    sb('meals?order=date.desc&limit=2000'),
+    sb('workouts?order=date.desc&limit=2000'),
+    sb('v_daily?order=date.desc&limit=2000'),
+    sb('body_measurements?method=eq.inbody&order=date.desc&limit=200'),
   ]);
+
+  // Map to legacy field names so existing render code keeps working unchanged
+  const meals = mealsRaw.map(m => ({
+    date:    m.date,
+    meal:    m.meal_type,
+    food:    m.food_name,
+    carb:    m.carb_g,
+    protein: m.protein_g,
+    fat:     m.fat_g,
+    kcal:    m.kcal,
+    memo:    m.note,
+  }));
+
+  const workouts = workoutsRaw.map(w => ({
+    date:      w.date,
+    type:      w.type,
+    duration:  w.duration_min,
+    intensity: w.intensity,
+    appleKcal: w.apple_kcal,
+    memo:      w.note,
+  }));
+
+  const daily = dailyRaw.map(d => ({
+    date:         d.date,
+    weight:       d.weight_kg,
+    skeletal:     d.skeletal_kg,
+    bf:           d.bf_pct,
+    fatMass:      d.fat_mass_kg,
+    drinking:     d.drinking === true,
+    sleep:        d.sleep_hours,
+    notes:        d.notes,
+    totalKcal:    d.total_kcal,
+    totalCarb:    d.total_carb,
+    totalProtein: d.total_protein,
+    totalFat:     d.total_fat,
+  }));
+
+  const inbody = inbodyRaw.map(i => ({
+    date:     i.date,
+    weight:   i.weight_kg,
+    skeletal: i.skeletal_kg,
+    bf:       i.bf_pct,
+    fatMass:  i.fat_mass_kg,
+    bmr:      i.bmr_kcal,
+    visceral: i.visceral_level,
+    bmi:      i.bmi,
+    score:    i.inbody_score,
+  }));
+
   return { meals, workouts, daily, inbody };
 }
 
