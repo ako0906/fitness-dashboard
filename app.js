@@ -420,22 +420,17 @@ function renderBfChart(daily, inbody) {
 
   const labels = filtered.map(d => d.date.slice(5));
 
-  const movAvg = (arr, key, w = 7) => arr.map((_, i) => {
-    const slice = arr.slice(Math.max(0, i - w + 1), i + 1).map(x => x[key]).filter(v => v != null);
-    if (!slice.length) return null;
-    return slice.reduce((a, b) => a + b, 0) / slice.length;
-  });
+  // Daily raw BF values — no smoothing, since measurements are daily
+  const bfData = filtered.map(d => d.bf);
 
-  const bfMA = movAvg(filtered, 'bf');
-
-  // Find last non-null index — only that point gets a dot (current position)
+  // Find last non-null index — only that point gets the position dot
   let lastValidIdx = -1;
-  for (let i = bfMA.length - 1; i >= 0; i--) {
-    if (bfMA[i] != null) { lastValidIdx = i; break; }
+  for (let i = bfData.length - 1; i >= 0; i--) {
+    if (bfData[i] != null) { lastValidIdx = i; break; }
   }
-  const pointRadii = bfMA.map((_, i) => i === lastValidIdx ? 4 : 0);
+  const pointRadii = bfData.map((_, i) => i === lastValidIdx ? 4 : 0);
 
-  // inbody markers
+  // inbody markers (drawn on top as separate dataset)
   const inbodyDots = filtered.map(d => {
     const ib = inbody.find(i => i.date && i.date.slice(0, 10) === d.date.slice(0, 10));
     return ib ? d.bf : null;
@@ -450,17 +445,18 @@ function renderBfChart(daily, inbody) {
       labels,
       datasets: [
         {
-          label: '체지방률 (7DMA)',
-          data: bfMA,
+          label: '체지방률',
+          data: bfData,
           borderColor: '#6FE0C2',
           backgroundColor: 'rgba(111, 224, 194, 0.07)',
           borderWidth: 1.8,
-          tension: 0.3,
+          tension: 0.25,
           pointRadius: pointRadii,
           pointBackgroundColor: '#6FE0C2',
           pointBorderColor: '#0A0E16',
           pointBorderWidth: 2,
           fill: true,
+          spanGaps: false,
         },
         {
           label: 'InBody',
