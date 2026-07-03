@@ -885,6 +885,15 @@ button { font: inherit; cursor: pointer; }
   font-size: 12px;
 }
 .modal-row:last-child { border: none; }
+.modal-session {
+  font-size: 11px;
+  color: var(--ice);
+  font-weight: 500;
+  margin: 10px 0 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.modal-session:first-child { border-top: none; padding-top: 0; margin-top: 0; }
 .modal-row span:first-child { color: var(--text-2); }
 .modal-row span:last-child  { color: var(--text); font-variant-numeric: tabular-nums; }
 

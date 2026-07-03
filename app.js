@@ -11,10 +11,10 @@ const CONFIG = {
     startDate: '2026-05-29',
   },
   macros: {
+    // fallback only — real targets come from v_daily (server-computed)
     workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
     rest:    { kcal: 1600, carb: 110, protein: 165, fat: 55 },
   },
-  weights: ['하키', '웨이트', '스케이트'], // counted as workout days
 };
 
 const $ = (id) => document.getElementById(id);
@@ -24,53 +24,42 @@ const $ = (id) => document.getElementById(id);
 const SUPABASE_URL = 'https://vkiffowvbzxzsqrfoqov.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_8Ld-0kVW2L9SmcjyqP7Teg_LYJutXYP';
 
-async function loadAll() {
-  const sb = async (path) => {
-    try {
-      const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-        headers: {
-          'apikey': SUPABASE_KEY,
-          'Authorization': `Bearer ${SUPABASE_KEY}`,
-        },
-      });
-      if (!r.ok) {
-        console.error('Supabase fetch failed:', path, r.status, await r.text());
-        return [];
-      }
-      return await r.json();
-    } catch (e) {
-      console.error('Supabase fetch error:', path, e);
+const sb = async (path) => {
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+    });
+    if (!r.ok) {
+      console.error('Supabase fetch failed:', path, r.status, await r.text());
       return [];
     }
-  };
+    return await r.json();
+  } catch (e) {
+    console.error('Supabase fetch error:', path, e);
+    return [];
+  }
+};
 
-  const [mealsRaw, workoutsRaw, dailyRaw, inbodyRaw] = await Promise.all([
-    sb('meals?order=date.desc&limit=2000'),
-    sb('workouts?order=date.desc&limit=2000'),
+async function loadAll() {
+  // Views do all the calculation; client only fetches + renders.
+  const [
+    dailyRaw, workoutsRaw, inbodyRaw, gridRaw,
+    hero, bodyDelta, workoutStats, sober, weekCompare, insights,
+  ] = await Promise.all([
     sb('v_daily?order=date.desc&limit=2000'),
+    sb('workouts?order=date.desc&limit=2000'),
     sb('body_measurements?method=eq.inbody&order=date.desc&limit=200'),
+    sb('v_workout_grid?order=date.desc&limit=2000'),
+    sb('v_hero'),
+    sb('v_body_delta'),
+    sb('v_workout_stats'),
+    sb('v_sober'),
+    sb('v_week_compare'),
+    sb('v_insights'),
   ]);
-
-  // Map to legacy field names so existing render code keeps working unchanged
-  const meals = mealsRaw.map(m => ({
-    date:    m.date,
-    meal:    m.meal_type,
-    food:    m.food_name,
-    carb:    m.carb_g,
-    protein: m.protein_g,
-    fat:     m.fat_g,
-    kcal:    m.kcal,
-    memo:    m.note,
-  }));
-
-  const workouts = workoutsRaw.map(w => ({
-    date:      w.date,
-    type:      w.type,
-    duration:  w.duration_min,
-    intensity: w.intensity,
-    appleKcal: w.apple_kcal,
-    memo:      w.note,
-  }));
 
   const daily = dailyRaw.map(d => ({
     date:         d.date,
@@ -85,21 +74,50 @@ async function loadAll() {
     totalCarb:    d.total_carb,
     totalProtein: d.total_protein,
     totalFat:     d.total_fat,
+    mealCount:    d.meal_count,
+    isWorkoutDay: d.is_workout_day === true,
+    targetKcal:   d.target_kcal,
+    targetCarb:   d.target_carb,
+    targetProtein: d.target_protein,
+    targetFat:    d.target_fat,
+  }));
+
+  const workouts = workoutsRaw.map(w => ({
+    date:      w.date,
+    type:      w.type,
+    duration:  w.duration_min,
+    intensity: w.intensity,
+    appleKcal: w.apple_kcal,
+    note:      w.note,
+    startTime: w.start_time,
   }));
 
   const inbody = inbodyRaw.map(i => ({
     date:     i.date,
-    weight:   i.weight_kg,
-    skeletal: i.skeletal_kg,
     bf:       i.bf_pct,
-    fatMass:  i.fat_mass_kg,
-    bmr:      i.bmr_kcal,
-    visceral: i.visceral_level,
-    bmi:      i.bmi,
-    score:    i.inbody_score,
   }));
 
-  return { meals, workouts, daily, inbody };
+  // Workout grid: date → { count, types[], intensities[], primaryType }
+  const grid = {};
+  for (const g of gridRaw) {
+    grid[g.date] = {
+      count:       g.workout_count,
+      types:       g.types || [],
+      intensities: g.intensities || [],
+      primaryType: g.primary_type,
+      isWorkout:   g.is_workout === true,
+    };
+  }
+
+  return {
+    daily, workouts, inbody, grid,
+    hero:         hero[0]         || null,
+    bodyDelta:    bodyDelta       || [],
+    workoutStats: workoutStats[0] || null,
+    sober:        sober[0]        || null,
+    weekCompare:  weekCompare     || [],
+    insights:     insights[0]     || null,
+  };
 }
 
 // ───────── Date utils (KST) ─────────
@@ -121,9 +139,6 @@ function addDays(d, n) {
   x.setDate(x.getDate() + n);
   return x;
 }
-function daysBetween(a, b) {
-  return Math.floor((new Date(b) - new Date(a)) / 86400000);
-}
 
 // ───────── Animation helper ─────────
 function animateNumber(el, to, opts = {}) {
@@ -143,30 +158,18 @@ function animateNumber(el, to, opts = {}) {
 }
 
 // ───────── 1. Hero ─────────
-function renderHero(daily) {
-  const todayYmd = toYMD(nowKST());
-  const dDay = daysBetween(todayYmd, CONFIG.target.date);
-  animateNumber($('dDay'), Math.max(0, dDay), { decimals: 0 });
+function renderHero(hero) {
+  if (hero) {
+    animateNumber($('dDay'), Math.max(0, hero.d_day), { decimals: 0 });
+  }
 
-  // latest BF
-  const sorted = [...daily].sort((a, b) => (a.date < b.date ? 1 : -1));
-  const latest = sorted.find(d => d.bf != null);
-  const bf = latest?.bf;
+  if (hero && hero.current_bf != null) {
+    const bfPct   = Number(hero.bf_pct_done);
+    const timePct = Number(hero.time_pct_done);
 
-  if (bf != null) {
-    animateNumber($('currentBf'), bf, { decimals: 1, suffix: '%' });
-
-    // BF progress 17.6 → 14.8
-    const total = CONFIG.target.startBf - CONFIG.target.bf;
-    const done  = CONFIG.target.startBf - bf;
-    const bfPct = Math.max(0, Math.min(100, (done / total) * 100));
+    animateNumber($('currentBf'), Number(hero.current_bf), { decimals: 1, suffix: '%' });
     $('progressFill').style.width = `${bfPct}%`;
     animateNumber($('progressPct'), bfPct, { decimals: 0, suffix: '% 완료' });
-
-    // Time progress (start date → target date)
-    const totalDays  = daysBetween(CONFIG.target.startDate, CONFIG.target.date);
-    const passedDays = Math.max(0, daysBetween(CONFIG.target.startDate, todayYmd));
-    const timePct = Math.max(0, Math.min(100, (passedDays / totalDays) * 100));
 
     // Pace: BF progress vs time progress
     const paceDiff = bfPct - timePct;
@@ -191,23 +194,22 @@ function renderHero(daily) {
 }
 
 // ───────── 2. Workout heatmap ─────────
-function renderHeatmap(workouts, daily) {
+function renderHeatmap(grid, workouts, stats) {
   const wrap = $('heatmap');
   const monthsEl = $('heatmapMonths');
   wrap.innerHTML = '';
   monthsEl.innerHTML = '';
 
-  // Oldest record date (from workouts/daily, or CONFIG fallback)
-  const all = [...workouts, ...daily].filter(r => r.date);
+  // Oldest recorded date determines grid start
+  const gridDates = Object.keys(grid);
   let oldestYmd = CONFIG.target.startDate;
-  for (const r of all) {
-    const ymd = r.date.slice(0, 10);
+  for (const ymd of gridDates) {
     if (ymd < oldestYmd) oldestYmd = ymd;
   }
   const recordStart = new Date(oldestYmd);
   recordStart.setHours(0, 0, 0, 0);
 
-  // Show the FULL starting month: align grid to the Sunday of (1st of that month)
+  // Full starting month: align to Sunday of (1st of that month)
   const monthStart = new Date(recordStart.getFullYear(), recordStart.getMonth(), 1);
   const gridStart = new Date(monthStart);
   gridStart.setDate(gridStart.getDate() - gridStart.getDay());
@@ -218,18 +220,16 @@ function renderHeatmap(workouts, daily) {
   const daysSpan = Math.floor((today - gridStart) / 86400000);
   const totalWeeks = Math.floor(daysSpan / 7) + 1;
 
-  // index workouts by date (priority: 하키 > 웨이트 > 유산소 > 휴식)
-  const map = {};
+  // group workouts by date for modal detail (may be multiple per day)
+  const workoutsByDate = {};
   for (const w of workouts) {
     if (!w.date) continue;
     const ymd = w.date.slice(0, 10);
-    const priority = { '하키': 4, '웨이트': 3, '유산소': 2, '휴식': 1 };
-    if (!map[ymd] || (priority[w.type] || 0) > (priority[map[ymd].type] || 0)) {
-      map[ymd] = w;
-    }
+    (workoutsByDate[ymd] ||= []).push(w);
   }
 
-  // Build cells
+  const typeClassMap = { '하키': 'hockey', '웨이트': 'weight', '유산소': 'cardio', '휴식': 'rest' };
+
   for (let w = 0; w < totalWeeks; w++) {
     for (let d = 0; d < 7; d++) {
       const cellDate = addDays(gridStart, w * 7 + d);
@@ -238,27 +238,20 @@ function renderHeatmap(workouts, daily) {
       cell.className = 'heatmap-cell';
       cell.dataset.date = ymd;
 
-      const isBeforeMonth = cellDate < monthStart;  // 시작 월 이전 → 그리드 미표시
+      const isBeforeMonth = cellDate < monthStart;
       const isToday  = cellDate.getTime() === today.getTime();
       const isFuture = cellDate > today;
 
       if (isBeforeMonth || isFuture) {
-        cell.classList.add('future');  // transparent
+        cell.classList.add('future');
       } else {
-        // Within starting month or later, but possibly before records started
-        const rec = map[ymd];
-        if (rec) {
-          const typeClass = ({
-            '하키':   'hockey',
-            '웨이트': 'weight',
-            '유산소': 'cardio',
-            '휴식':   'rest',
-          })[rec.type] || 'rest';
-          cell.classList.add(typeClass);
-          if (rec.intensity) cell.dataset.intensity = rec.intensity;
-          cell.addEventListener('click', () => showWorkoutModal(rec, ymd));
+        const g = grid[ymd];
+        if (g && g.isWorkout) {
+          cell.classList.add(typeClassMap[g.primaryType] || 'rest');
+          const dayWorkouts = workoutsByDate[ymd] || [];
+          cell.addEventListener('click', () => showWorkoutModal(dayWorkouts, ymd));
         } else {
-          cell.classList.add('empty');  // broken-ice 빈 셀
+          cell.classList.add('empty');
         }
       }
 
@@ -267,41 +260,28 @@ function renderHeatmap(workouts, daily) {
     }
   }
 
-  // Month labels: each month's 1st in grid (including the starting month)
+  // Month labels
   for (let w = 0; w < totalWeeks; w++) {
     for (let d = 0; d < 7; d++) {
       const cellDate = addDays(gridStart, w * 7 + d);
       if (cellDate.getDate() === 1 && cellDate >= monthStart && cellDate <= today) {
-        const month = cellDate.getMonth() + 1;
         const span = document.createElement('span');
         span.className = 'month-label';
         span.style.gridColumn = `${w + 1}`;
-        span.textContent = `${month}월`;
+        span.textContent = `${cellDate.getMonth() + 1}월`;
         monthsEl.appendChild(span);
         break;
       }
     }
   }
 
-  // Stats: 30-day count + current streak
-  const last30 = Object.values(map).filter(rec => {
-    if (!rec.date) return false;
-    const d = new Date(rec.date.slice(0, 10));
-    const isWorkoutType = CONFIG.weights.includes(rec.type) || rec.type === '유산소';
-    return d >= addDays(today, -30) && d <= today && isWorkoutType;
-  }).length;
-
-  let streak = 0;
-  const startOffset = map[toYMD(today)] ? 0 : 1;
-  for (let i = startOffset; i < 400; i++) {
-    const ymd = toYMD(addDays(today, -i));
-    if (map[ymd]) streak++;
-    else break;
+  // Stats from view: 30-day count + this-week count
+  if (stats) {
+    const wk = stats.this_week_count;
+    $('gridSubtitle').textContent = wk > 0
+      ? `최근 30일 ${stats.last30_count}회 · 이번 주 ${wk}회`
+      : `최근 30일 ${stats.last30_count}회`;
   }
-
-  $('gridSubtitle').textContent = streak > 1
-    ? `최근 30일 ${last30}회 · ${streak}일 연속`
-    : `최근 30일 ${last30}회`;
 
   // auto-scroll to today (rightmost)
   const scrollWrap = document.querySelector('.heatmap-wrap');
@@ -310,19 +290,29 @@ function renderHeatmap(workouts, daily) {
   }
 }
 
-function showWorkoutModal(rec, date) {
+function showWorkoutModal(dayWorkouts, date) {
   $('modalDate').textContent = date;
-  const rows = [
-    ['종류', rec.type || '—'],
-    ['시간', rec.duration ? `${rec.duration}분` : '—'],
-    ['강도', rec.intensity || '—'],
-    ['컨디션', rec.condition || '—'],
-    ['애플워치', rec.appleKcal ? `${rec.appleKcal} kcal` : '—'],
-    ['메모', rec.note || '—'],
-  ];
-  $('modalBody').innerHTML = rows.map(([k, v]) =>
-    `<div class="modal-row"><span>${k}</span><span>${v}</span></div>`
-  ).join('');
+  if (!dayWorkouts || !dayWorkouts.length) {
+    $('modalBody').innerHTML = '<div class="modal-row"><span>기록 없음</span></div>';
+    $('modal').hidden = false;
+    return;
+  }
+  // One block per workout (supports multiple sessions in a day)
+  $('modalBody').innerHTML = dayWorkouts.map((rec, idx) => {
+    const rows = [
+      ['종류', rec.type || '—'],
+      ['시간', rec.duration ? `${rec.duration}분` : '—'],
+      ['강도', rec.intensity || '—'],
+      ['애플워치', rec.appleKcal ? `${rec.appleKcal} kcal` : '—'],
+      ['메모', rec.note || '—'],
+    ];
+    const header = dayWorkouts.length > 1
+      ? `<div class="modal-session">세션 ${idx + 1}${rec.startTime ? ' · ' + rec.startTime.slice(0,5) : ''}</div>`
+      : '';
+    return header + rows.map(([k, v]) =>
+      `<div class="modal-row"><span>${k}</span><span>${v}</span></div>`
+    ).join('');
+  }).join('');
   $('modal').hidden = false;
 }
 
@@ -352,56 +342,45 @@ function makeSparkline(values, color = '#7E8AA6') {
   </svg>`;
 }
 
-function renderMetricCard(cardId, daily, key, unit, opts = {}) {
+function renderMetricCard(cardId, daily, delta, key, unit, opts = {}) {
   const card = $(cardId);
   if (!card) return;
   const numEl    = card.querySelector('.metric-num');
   const deltaEl  = card.querySelector('.metric-delta');
   const sparkEl  = card.querySelector('.sparkline-wrap');
 
-  const sorted = [...daily]
-    .filter(d => d[key] != null)
-    .sort((a, b) => a.date < b.date ? -1 : 1);
+  // delta row: { key, latest_val, prev_val, delta_7d } from v_body_delta
+  const dRow = delta.find(d => d.key === key);
 
-  if (!sorted.length) {
+  if (!dRow || dRow.latest_val == null) {
     numEl.textContent = '—';
     deltaEl.textContent = '—';
     return;
   }
 
-  const latest = sorted[sorted.length - 1];
-  const decimals = (key === 'bf') ? 1 : 1;
-  numEl.innerHTML = `${latest[key].toFixed(decimals)}<span class="metric-unit">${unit}</span>`;
+  const latestVal = Number(dRow.latest_val);
+  numEl.innerHTML = `${latestVal.toFixed(1)}<span class="metric-unit">${unit}</span>`;
 
-  // 7-day delta: compare latest to most recent record at-or-before (latest - 7d).
-  // If exactly 7 days ago is missing, falls back to 8, 9, 10... days ago automatically.
-  const latestDate = new Date(latest.date);
-  const sevenAgo = addDays(latestDate, -7);
-
-  let prev = null;
-  for (const r of sorted) {
-    if (new Date(r.date) <= sevenAgo) prev = r;
-    else break;
-  }
-
-  if (!prev || prev === latest) {
+  if (dRow.delta_7d == null) {
     deltaEl.textContent = '—';
     deltaEl.className = 'metric-delta';
   } else {
-    const delta = latest[key] - prev[key];
-    const sign = delta > 0 ? '+' : '';
-    const goodDir = opts.lowerIsBetter ? (delta < -0.05) : (delta > 0.05);
-    const badDir  = opts.lowerIsBetter ? (delta >  0.05) : (delta < -0.05);
+    const dv = Number(dRow.delta_7d);
+    const sign = dv > 0 ? '+' : '';
+    const goodDir = opts.lowerIsBetter ? (dv < -0.05) : (dv > 0.05);
+    const badDir  = opts.lowerIsBetter ? (dv >  0.05) : (dv < -0.05);
     deltaEl.className = 'metric-delta' + (goodDir ? ' good' : badDir ? ' warn' : '');
-    deltaEl.textContent = Math.abs(delta) < 0.05 ? `±0 / 주` : `${sign}${delta.toFixed(decimals)} / 주`;
+    deltaEl.textContent = Math.abs(dv) < 0.05 ? `±0 / 주` : `${sign}${dv.toFixed(1)} / 주`;
   }
 
-  // sparkline: last 30 days (filling all daily slots)
+  // sparkline: last 30 days from daily (fetch already in hand, no extra call)
+  const dailyKey = key; // daily uses same short keys: weight/skeletal/bf
   const today = nowKST(); today.setHours(0,0,0,0);
   const cutoff = addDays(today, -30);
-  const recent = sorted.filter(d => new Date(d.date) >= cutoff);
-  const values = recent.map(d => d[key]);
-  sparkEl.innerHTML = makeSparkline(values, opts.sparkColor || '#7E8AA6');
+  const recent = [...daily]
+    .filter(d => d[dailyKey] != null && new Date(d.date) >= cutoff)
+    .sort((a, b) => a.date < b.date ? -1 : 1);
+  sparkEl.innerHTML = makeSparkline(recent.map(d => d[dailyKey]), opts.sparkColor || '#7E8AA6');
 }
 
 function renderBfChart(daily, inbody) {
@@ -514,32 +493,37 @@ function renderBfChart(daily, inbody) {
   });
 }
 
-function renderComposition(daily, inbody) {
-  renderMetricCard('card-weight',   daily, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
-  renderMetricCard('card-skeletal', daily, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#7E8AA6' });
-  renderMetricCard('card-bf',       daily, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
+function renderComposition(daily, inbody, bodyDelta) {
+  renderMetricCard('card-weight',   daily, bodyDelta, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
+  renderMetricCard('card-skeletal', daily, bodyDelta, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#7E8AA6' });
+  renderMetricCard('card-bf',       daily, bodyDelta, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
   renderBfChart(daily, inbody);
 }
 
 // ───────── 4. Today macros ─────────
-function renderTodayMacros(meals, workouts) {
+function renderTodayMacros(daily, todayMeals) {
   const today = toYMD(nowKST());
-  const todayMeals = meals.filter(m => m.date && m.date.slice(0, 10) === today);
-  const todayWorkout = workouts.find(w => w.date && w.date.slice(0, 10) === today);
+  const todayRow = daily.find(d => d.date && d.date.slice(0, 10) === today);
 
-  const isWorkout = todayWorkout && CONFIG.weights.includes(todayWorkout.type);
-  const target = isWorkout ? CONFIG.macros.workout : CONFIG.macros.rest;
+  const isWorkout = todayRow?.isWorkoutDay === true;
 
   const typeEl = $('todayType');
-  typeEl.textContent = isWorkout ? `운동일 · ${todayWorkout.type}` : '휴식일';
+  typeEl.textContent = isWorkout ? '운동일' : '휴식일';
   typeEl.className = 'card-sub' + (isWorkout ? ' status-workout' : '');
 
-  const total = todayMeals.reduce((acc, m) => ({
-    kcal:    acc.kcal    + (m.kcal    || 0),
-    carb:    acc.carb    + (m.carb    || 0),
-    protein: acc.protein + (m.protein || 0),
-    fat:     acc.fat     + (m.fat     || 0),
-  }), { kcal: 0, carb: 0, protein: 0, fat: 0 });
+  // Totals + targets come straight from the v_daily row (server-computed)
+  const total = {
+    kcal:    todayRow?.totalKcal    || 0,
+    carb:    todayRow?.totalCarb    || 0,
+    protein: todayRow?.totalProtein || 0,
+    fat:     todayRow?.totalFat     || 0,
+  };
+  const target = {
+    kcal:    todayRow?.targetKcal    ?? CONFIG.macros.rest.kcal,
+    carb:    todayRow?.targetCarb    ?? CONFIG.macros.rest.carb,
+    protein: todayRow?.targetProtein ?? CONFIG.macros.rest.protein,
+    fat:     todayRow?.targetFat     ?? CONFIG.macros.rest.fat,
+  };
 
   const rings = [
     { key: 'kcal',    label: '칼로리',   value: total.kcal,    target: target.kcal,    unit: '' },
@@ -578,8 +562,9 @@ function renderTodayMacros(meals, workouts) {
   // Meal strip — which meals came in today
   const slots = ['아침', '점심', '저녁', '간식'];
   const seen = new Set();
-  for (const m of todayMeals) {
-    if (slots.includes(m.meal)) seen.add(m.meal);
+  for (const m of (todayMeals || [])) {
+    const mt = m.meal_type;
+    if (slots.includes(mt)) seen.add(mt);
     else seen.add('간식'); // 운동전/운동후 → 간식
   }
   $('mealStrip').innerHTML = slots.map(s => {
@@ -590,22 +575,27 @@ function renderTodayMacros(meals, workouts) {
 
 // ───────── 5. Week charts ─────────
 let kcalChart, proteinChart;
-function renderWeekCharts(meals, workouts) {
+function renderWeekCharts(daily) {
   const today = nowKST();
   today.setHours(0, 0, 0, 0);
+
+  // index daily rows by date
+  const byDate = {};
+  for (const d of daily) {
+    if (d.date) byDate[d.date.slice(0, 10)] = d;
+  }
+
   const days = [];
   for (let i = 6; i >= 0; i--) {
     const d = addDays(today, -i);
     const ymd = toYMD(d);
-    const dayMeals = meals.filter(m => m.date && m.date.slice(0, 10) === ymd);
-    const workout = workouts.find(w => w.date && w.date.slice(0, 10) === ymd);
-    const isWorkout = workout && CONFIG.weights.includes(workout.type);
+    const row = byDate[ymd];
     days.push({
       ymd,
       label: ['일','월','화','수','목','금','토'][d.getDay()],
-      kcal: dayMeals.reduce((s, m) => s + (m.kcal || 0), 0),
-      protein: dayMeals.reduce((s, m) => s + (m.protein || 0), 0),
-      isWorkout,
+      kcal: row?.totalKcal || 0,
+      protein: row?.totalProtein || 0,
+      isWorkout: row?.isWorkoutDay === true,
     });
   }
 
@@ -707,40 +697,33 @@ function renderWeekCharts(meals, workouts) {
 }
 
 // ───────── 6. Sober streak ─────────
-function renderSober(daily) {
+function renderSober(sober, daily) {
   const today = nowKST();
   today.setHours(0, 0, 0, 0);
-  const sorted = [...daily].sort((a, b) => a.date < b.date ? 1 : -1);
-  const lastDrink = sorted.find(d => d.drinking === true);
 
   const daysEl = $('soberDays');
   const metaEl = $('soberMeta');
 
-  // This month's drinking count (KST month)
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const thisMonthCount = daily.filter(d => {
-    if (!(d.drinking === true) || !d.date) return false;
-    return new Date(d.date.slice(0, 10)) >= monthStart;
-  }).length;
+  const thisMonthCount = sober?.this_month_count ?? 0;
+  const soberDays = sober?.sober_days;
+  const lastDate  = sober?.last_date;
 
-  if (!lastDrink) {
+  if (soberDays == null || !lastDate) {
     daysEl.textContent = '∞';
     daysEl.dataset.value = '0';
     metaEl.innerHTML = `이번 달 ${thisMonthCount}회 · 기록 없음`;
   } else {
-    const days = daysBetween(lastDrink.date.slice(0, 10), toYMD(today));
-    animateNumber(daysEl, days, { decimals: 0 });
+    animateNumber(daysEl, soberDays, { decimals: 0 });
 
-    // Status segment: milestone hit OR countdown OR last-drink date
     let status;
-    if (days >= 60)       status = `<span class="milestone">2개월 달성</span>`;
-    else if (days >= 30)  status = `<span class="milestone">30일 달성</span>`;
-    else if (days >= 14)  status = `<span class="milestone">2주 클린</span>`;
-    else if (days >= 7)   status = `<span class="milestone">1주 클린</span>`;
-    else if (days >= 4)   status = `1주까지 ${7 - days}일`;
+    if (soberDays >= 60)      status = `<span class="milestone">2개월 달성</span>`;
+    else if (soberDays >= 30) status = `<span class="milestone">30일 달성</span>`;
+    else if (soberDays >= 14) status = `<span class="milestone">2주 클린</span>`;
+    else if (soberDays >= 7)  status = `<span class="milestone">1주 클린</span>`;
+    else if (soberDays >= 4)  status = `1주까지 ${7 - soberDays}일`;
     else {
-      const [, m, d] = lastDrink.date.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
-      const md = m && d ? `${parseInt(m)}/${parseInt(d)}` : lastDrink.date.slice(5);
+      const [, m, d] = lastDate.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
+      const md = m && d ? `${parseInt(m)}/${parseInt(d)}` : lastDate.slice(5);
       status = `마지막 ${md}`;
     }
 
@@ -775,56 +758,23 @@ function renderSoberDots(daily, today) {
 }
 
 // ───────── 7. Week / Week (Mon-Sun) ─────────
-function getMonday(date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const day = d.getDay();
-  const diff = day === 0 ? -6 : 1 - day; // Sun→back 6, otherwise back to Mon
-  d.setDate(d.getDate() + diff);
-  return d;
-}
+function renderWeekWeek(weekCompare) {
+  const thisRow = weekCompare.find(w => w.period === 'this') || {};
+  const lastRow = weekCompare.find(w => w.period === 'last') || {};
 
-function renderWeekWeek(meals, workouts, daily) {
-  const today = nowKST();
-  today.setHours(0, 0, 0, 0);
-
-  const thisWeekStart = getMonday(today);
-  const thisWeekEnd   = addDays(thisWeekStart, 7);   // exclusive
-  const lastWeekStart = addDays(thisWeekStart, -7);
-  const lastWeekEnd   = thisWeekStart;
-
-  const inRange = (ymd, start, end) => {
-    const d = new Date(ymd);
-    return d >= start && d < end;
+  const num = (v) => v == null ? null : Number(v);
+  const thisWeek = {
+    workoutCount: num(thisRow.workout_count) ?? 0,
+    proteinAvg:   num(thisRow.protein_avg) ?? 0,
+    bfAvg:        num(thisRow.bf_avg),
+    drinkDays:    num(thisRow.drink_days) ?? 0,
   };
-
-  const calc = (start, end) => {
-    const ws = workouts.filter(w => w.date && inRange(w.date.slice(0,10), start, end) && CONFIG.weights.includes(w.type));
-    const ms = meals.filter(m => m.date && inRange(m.date.slice(0,10), start, end));
-    const ds = daily.filter(d => d.date && inRange(d.date.slice(0,10), start, end));
-
-    const proteinByDay = {};
-    ms.forEach(m => {
-      const ymd = m.date.slice(0,10);
-      proteinByDay[ymd] = (proteinByDay[ymd] || 0) + (m.protein || 0);
-    });
-    const proteinAvg = Object.values(proteinByDay).length
-      ? Object.values(proteinByDay).reduce((a,b)=>a+b,0) / Object.values(proteinByDay).length
-      : 0;
-
-    const bfRecords = ds.map(d => d.bf).filter(v => v != null);
-    const bfAvg = bfRecords.length ? bfRecords.reduce((a,b)=>a+b,0) / bfRecords.length : null;
-
-    return {
-      workoutCount: ws.length,
-      proteinAvg,
-      bfAvg,
-      drinkDays: ds.filter(d => d.drinking).length,
-    };
+  const lastWeek = {
+    workoutCount: num(lastRow.workout_count) ?? 0,
+    proteinAvg:   num(lastRow.protein_avg) ?? 0,
+    bfAvg:        num(lastRow.bf_avg),
+    drinkDays:    num(lastRow.drink_days) ?? 0,
   };
-
-  const thisWeek = calc(thisWeekStart, thisWeekEnd);
-  const lastWeek = calc(lastWeekStart, lastWeekEnd);
 
   const fmt = (v, suffix='', decimals=0) => v == null ? '—' : `${v.toFixed(decimals)}${suffix}`;
   const deltaInfo = (a, b, suffix='', decimals=1, lowerIsBetter=false) => {
@@ -883,61 +833,32 @@ function renderWeekWeek(meals, workouts, daily) {
 }
 
 // ───────── 8. Insights / Forecast ─────────
-function renderInsights(daily, meals) {
-  const today = nowKST();
-  today.setHours(0, 0, 0, 0);
-  const sorted = [...daily].sort((a, b) => a.date < b.date ? -1 : 1);
+function renderInsights(insights) {
+  const kcalAvg    = insights?.kcal_avg_7d != null ? Number(insights.kcal_avg_7d) : null;
+  const proteinAvg = insights?.protein_avg_7d != null ? Number(insights.protein_avg_7d) : null;
+  const weekRate   = insights?.bf_rate_per_week != null ? Number(insights.bf_rate_per_week) : null;
+  const forecast   = insights?.forecast_bf != null ? Number(insights.forecast_bf) : null;
+  const targetBf   = insights?.target_bf != null ? Number(insights.target_bf) : CONFIG.target.bf;
 
-  // recent 7d kcal average
-  const last7 = sorted.slice(-7);
-  const kcalSum = last7.reduce((s, d) => s + (d.totalKcal || 0), 0);
-  const kcalAvg = last7.length ? kcalSum / last7.length : 0;
-
-  // protein avg (computed from meals to be more accurate)
-  const cutoff = addDays(today, -7);
-  const proteinByDay = {};
-  meals.forEach(m => {
-    if (!m.date) return;
-    const d = new Date(m.date.slice(0,10));
-    if (d >= cutoff && d <= today) {
-      const ymd = m.date.slice(0,10);
-      proteinByDay[ymd] = (proteinByDay[ymd] || 0) + (m.protein || 0);
-    }
-  });
-  const proteinVals = Object.values(proteinByDay);
-  const proteinAvg = proteinVals.length ? proteinVals.reduce((a,b)=>a+b,0) / proteinVals.length : 0;
-
-  // BF pace
-  const bfRecords = sorted.filter(d => d.bf != null);
+  // pace text
   let paceText = '—';
-  let forecastText = '—';
-  let forecastCls = '';
-  if (bfRecords.length >= 2) {
-    const recent = bfRecords.slice(-14);
-    const first = recent[0];
-    const last  = recent[recent.length - 1];
-    const days = daysBetween(first.date.slice(0,10), last.date.slice(0,10)) || 1;
-    const ratePerDay = (last.bf - first.bf) / days;
-    const weekRate = ratePerDay * 7;
+  if (weekRate != null) {
     paceText = `${weekRate >= 0 ? '+' : ''}${weekRate.toFixed(2)}%p / 주`;
-
-    const dDay = daysBetween(toYMD(today), CONFIG.target.date);
-    const predicted = last.bf + ratePerDay * dDay;
-    forecastText = `${predicted.toFixed(1)}%`;
-    if (predicted <= CONFIG.target.bf) forecastCls = 'good';
-    else if (predicted - CONFIG.target.bf <= 0.5) forecastCls = '';
-    else forecastCls = 'warn';
   }
 
   // Hero: 7/17 forecast (big)
   const bigEl  = $('forecastBig');
   const metaEl = $('forecastMeta');
-  if (forecastText !== '—') {
-    const predictedNum = parseFloat(forecastText);
-    animateNumber(bigEl, predictedNum, { decimals: 1, suffix: '%' });
+  if (forecast != null) {
+    let forecastCls = '';
+    if (forecast <= targetBf) forecastCls = 'good';
+    else if (forecast - targetBf <= 0.5) forecastCls = '';
+    else forecastCls = 'warn';
+
+    animateNumber(bigEl, forecast, { decimals: 1, suffix: '%' });
     bigEl.className = 'insight-hero-value ' + forecastCls;
 
-    const diff = predictedNum - CONFIG.target.bf;
+    const diff = forecast - targetBf;
     if (diff <= 0) {
       metaEl.innerHTML = `<span class="good">목표 달성 페이스</span>`;
     } else if (diff <= 0.5) {
@@ -952,8 +873,8 @@ function renderInsights(daily, meals) {
   }
 
   const items = [
-    { label: '7일 평균 칼로리', value: `${Math.round(kcalAvg)} kcal`, cls: '' },
-    { label: '7일 평균 단백질', value: `${Math.round(proteinAvg)} g`, cls: proteinAvg >= 150 ? 'good' : '' },
+    { label: '7일 평균 칼로리', value: kcalAvg != null ? `${Math.round(kcalAvg)} kcal` : '—', cls: '' },
+    { label: '7일 평균 단백질', value: proteinAvg != null ? `${Math.round(proteinAvg)} g` : '—', cls: (proteinAvg ?? 0) >= 150 ? 'good' : '' },
     { label: '체지방률 추세',   value: paceText, cls: paceText.startsWith('-') ? 'good' : (paceText === '—' ? '' : 'warn') },
   ];
 
@@ -967,15 +888,20 @@ function renderInsights(daily, meals) {
 
 // ───────── Init ─────────
 async function render() {
-  const data = await loadAll();
-  renderHero(data.daily);
-  renderHeatmap(data.workouts, data.daily);
-  renderComposition(data.daily, data.inbody);
-  renderTodayMacros(data.meals, data.workouts);
-  renderWeekCharts(data.meals, data.workouts);
-  renderSober(data.daily);
-  renderWeekWeek(data.meals, data.workouts, data.daily);
-  renderInsights(data.daily, data.meals);
+  const today = toYMD(nowKST());
+  const [data, todayMeals] = await Promise.all([
+    loadAll(),
+    sb(`meals?date=eq.${today}&select=meal_type`),  // meal-strip dots only
+  ]);
+
+  renderHero(data.hero);
+  renderHeatmap(data.grid, data.workouts, data.workoutStats);
+  renderComposition(data.daily, data.inbody, data.bodyDelta);
+  renderTodayMacros(data.daily, todayMeals);
+  renderWeekCharts(data.daily);
+  renderSober(data.sober, data.daily);
+  renderWeekWeek(data.weekCompare);
+  renderInsights(data.insights);
 }
 
 function resetAnimations() {
