@@ -200,8 +200,8 @@ function renderHero(hero, lossPlan) {
 
 // "2026-07-21" → "7월 21일"
 function fmtMonthDay(ymd) {
-  const [, m, d] = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/) || [];
-  return m && d ? `${parseInt(m)}월 ${parseInt(d)}일` : ymd;
+  const m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${parseInt(m[2])}월 ${parseInt(m[3])}일` : ymd;
 }
 
 // ───────── 2. Workout heatmap ─────────
@@ -733,8 +733,8 @@ function renderSober(sober, daily) {
     else if (soberDays >= 7)  status = `<span class="milestone">1주 클린</span>`;
     else if (soberDays >= 4)  status = `1주까지 ${7 - soberDays}일`;
     else {
-      const [, m, d] = lastDate.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
-      const md = m && d ? `${parseInt(m)}/${parseInt(d)}` : lastDate.slice(5);
+      const mm = lastDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+      const md = mm ? `${parseInt(mm[2])}/${parseInt(mm[3])}` : lastDate.slice(5);
       status = `마지막 ${md}`;
     }
 
