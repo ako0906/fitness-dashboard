@@ -406,9 +406,34 @@ function renderMetricCard(cardId, daily, delta, key, unit, opts = {}) {
   sparkEl.innerHTML = makeSparkline(recent.map(d => d[dailyKey]), opts.sparkColor || '#7E8AA6');
 }
 
-function renderBfChart(daily, inbody) {
+// 지표별 차트 설정
+const METRIC_CONFIG = {
+  bf: {
+    key: 'bf', title: '체지방률 추이', unit: '%', color: '#6FE0C2',
+    fillBg: 'rgba(111, 224, 194, 0.07)', decimals: 2,
+    target: () => CONFIG.target.bf, targetLabel: () => `목표 ${CONFIG.target.bf}%`,
+  },
+  weight: {
+    key: 'weight', title: '체중 추이', unit: 'kg', color: '#A8D8F0',
+    fillBg: 'rgba(168, 216, 240, 0.07)', decimals: 2,
+    target: () => null, targetLabel: () => '최근 60일',
+  },
+  skeletal: {
+    key: 'skeletal', title: '골격근량 추이', unit: 'kg', color: '#B8B5F0',
+    fillBg: 'rgba(184, 181, 240, 0.07)', decimals: 2,
+    target: () => null, targetLabel: () => '최근 60일',
+  },
+};
+let currentMetric = 'bf';
+
+function renderBodyChart(daily, inbody, metricKey) {
+  const cfg = METRIC_CONFIG[metricKey] || METRIC_CONFIG.bf;
   const ctx = $('bfChart').getContext('2d');
   if (bfChart) bfChart.destroy();
+
+  // 헤더 갱신
+  $('chartTitle').textContent = cfg.title;
+  $('chartMeta').textContent = cfg.targetLabel();
 
   const today = nowKST();
   const start = addDays(today, -60);
@@ -416,69 +441,71 @@ function renderBfChart(daily, inbody) {
     .filter(d => new Date(d.date) >= start)
     .sort((a, b) => a.date < b.date ? -1 : 1);
 
-  // skip leading days without bf data
-  const firstIdx = all.findIndex(d => d.bf != null);
+  // skip leading days without data for this metric
+  const firstIdx = all.findIndex(d => d[cfg.key] != null);
   const filtered = firstIdx >= 0 ? all.slice(firstIdx) : all;
 
   const labels = filtered.map(d => d.date.slice(5));
+  const data = filtered.map(d => d[cfg.key]);
 
-  // Daily raw BF values — no smoothing, since measurements are daily
-  const bfData = filtered.map(d => d.bf);
-
-  // Find last non-null index — only that point gets the position dot
+  // last valid point → position dot
   let lastValidIdx = -1;
-  for (let i = bfData.length - 1; i >= 0; i--) {
-    if (bfData[i] != null) { lastValidIdx = i; break; }
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i] != null) { lastValidIdx = i; break; }
   }
-  const pointRadii = bfData.map((_, i) => i === lastValidIdx ? 4 : 0);
+  const pointRadii = data.map((_, i) => i === lastValidIdx ? 4 : 0);
 
-  // inbody markers (drawn on top as separate dataset)
+  // inbody markers (bf/weight/skeletal 모두 InBody에 있음)
   const inbodyDots = filtered.map(d => {
     const ib = inbody.find(i => i.date && i.date.slice(0, 10) === d.date.slice(0, 10));
-    return ib ? d.bf : null;
+    return ib ? d[cfg.key] : null;
   });
 
   Chart.defaults.font.family = "'Pretendard Variable', sans-serif";
   Chart.defaults.color = '#7E8AA6';
 
+  const datasets = [
+    {
+      label: cfg.title.replace(' 추이', ''),
+      data,
+      borderColor: cfg.color,
+      backgroundColor: cfg.fillBg,
+      borderWidth: 1.8,
+      tension: 0.25,
+      pointRadius: pointRadii,
+      pointBackgroundColor: cfg.color,
+      pointBorderColor: '#0A0E16',
+      pointBorderWidth: 2,
+      fill: true,
+      spanGaps: false,
+    },
+    {
+      label: 'InBody',
+      data: inbodyDots,
+      borderColor: 'transparent',
+      backgroundColor: '#B8B5F0',
+      pointRadius: 4,
+      pointHoverRadius: 6,
+      showLine: false,
+    },
+  ];
+
+  // 목표선 (체지방률만)
+  const targetVal = cfg.target();
+  if (targetVal != null) {
+    datasets.push({
+      label: cfg.targetLabel(),
+      data: filtered.map(() => targetVal),
+      borderColor: 'rgba(111, 224, 194, 0.45)',
+      borderDash: [3, 3],
+      borderWidth: 1,
+      pointRadius: 0,
+    });
+  }
+
   bfChart = new Chart(ctx, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [
-        {
-          label: '체지방률',
-          data: bfData,
-          borderColor: '#6FE0C2',
-          backgroundColor: 'rgba(111, 224, 194, 0.07)',
-          borderWidth: 1.8,
-          tension: 0.25,
-          pointRadius: pointRadii,
-          pointBackgroundColor: '#6FE0C2',
-          pointBorderColor: '#0A0E16',
-          pointBorderWidth: 2,
-          fill: true,
-          spanGaps: false,
-        },
-        {
-          label: 'InBody',
-          data: inbodyDots,
-          borderColor: 'transparent',
-          backgroundColor: '#B8B5F0',
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          showLine: false,
-        },
-        {
-          label: '목표 14.8%',
-          data: filtered.map(() => CONFIG.target.bf),
-          borderColor: 'rgba(111, 224, 194, 0.45)',
-          borderDash: [3, 3],
-          borderWidth: 1,
-          pointRadius: 0,
-        },
-      ],
-    },
+    data: { labels, datasets },
     options: {
       responsive: true,
       maintainAspectRatio: false,
@@ -493,10 +520,10 @@ function renderBfChart(daily, inbody) {
           bodyFont:  { family: "'Pretendard Variable', sans-serif", size: 11 },
           padding: 10,
           callbacks: {
-            label: (ctx) => {
-              if (ctx.dataset.label === 'InBody' && ctx.parsed.y == null) return null;
-              if (ctx.parsed.y == null) return null;
-              return `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}%`;
+            label: (c) => {
+              if (c.dataset.label === 'InBody' && c.parsed.y == null) return null;
+              if (c.parsed.y == null) return null;
+              return `${c.dataset.label}: ${c.parsed.y.toFixed(cfg.decimals)}${cfg.unit}`;
             }
           }
         },
@@ -508,8 +535,8 @@ function renderBfChart(daily, inbody) {
         },
         y: {
           grid: { color: '#252D3F', lineWidth: 0.5 },
-          ticks: { font: { size: 9 }, color: '#7E8AA6', callback: v => v.toFixed(1) + '%' },
-          suggestedMin: CONFIG.target.bf - 0.5,
+          ticks: { font: { size: 9 }, color: '#7E8AA6', callback: v => v.toFixed(1) + cfg.unit },
+          suggestedMin: targetVal != null ? targetVal - 0.5 : undefined,
         },
       },
     },
@@ -520,7 +547,25 @@ function renderComposition(daily, inbody, bodyDelta) {
   renderMetricCard('card-weight',   daily, bodyDelta, 'weight',   'kg', { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
   renderMetricCard('card-skeletal', daily, bodyDelta, 'skeletal', 'kg', { lowerIsBetter: false, sparkColor: '#7E8AA6' });
   renderMetricCard('card-bf',       daily, bodyDelta, 'bf',       '%',  { lowerIsBetter: true,  sparkColor: '#7E8AA6' });
-  renderBfChart(daily, inbody);
+
+  // 카드 클릭 → 해당 지표 그래프로 전환
+  const cardMap = { 'card-weight': 'weight', 'card-skeletal': 'skeletal', 'card-bf': 'bf' };
+  const selectCard = (metric) => {
+    currentMetric = metric;
+    Object.entries(cardMap).forEach(([id, m]) => {
+      $(id).classList.toggle('selected', m === metric);
+    });
+    renderBodyChart(daily, inbody, metric);
+  };
+
+  Object.entries(cardMap).forEach(([id, metric]) => {
+    const card = $(id);
+    // 이벤트 중복 방지: 기존 핸들러 제거 후 재등록
+    card.onclick = () => selectCard(metric);
+  });
+
+  // 초기 선택 유지 (기본 bf)
+  selectCard(currentMetric);
 }
 
 // ───────── 4. Today macros ─────────

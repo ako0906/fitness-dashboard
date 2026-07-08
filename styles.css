@@ -457,7 +457,21 @@ button { font: inherit; cursor: pointer; }
   flex-direction: column;
   gap: 5px;
   min-width: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color var(--t-base) var(--ease), background var(--t-base) var(--ease);
 }
+/* 선택된 지표 카드 강조 */
+.metric-card.selected {
+  border-color: var(--border);
+  background: var(--surface);
+}
+#card-weight.selected   { border-color: rgba(168, 216, 240, 0.5); }
+#card-skeletal.selected { border-color: rgba(184, 181, 240, 0.5); }
+#card-bf.selected       { border-color: rgba(111, 224, 194, 0.5); }
+#card-weight.selected   .metric-label { color: var(--ice); }
+#card-skeletal.selected .metric-label { color: var(--lavender); }
+#card-bf.selected       .metric-label { color: var(--mint); }
 .metric-card .metric-label {
   font-size: 11px;
   color: var(--text-2);
