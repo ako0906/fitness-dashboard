@@ -214,6 +214,11 @@ button { font: inherit; cursor: pointer; }
 }
 .pace-line .good { color: var(--mint); }
 .pace-line .warn { color: var(--rose); }
+.pace-line .proj {
+  color: var(--ice);
+  font-weight: 600;
+  font-family: var(--font-sans);
+}
 
 .updated {
   font-family: var(--font-mono);

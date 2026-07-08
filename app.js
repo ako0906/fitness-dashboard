@@ -47,7 +47,7 @@ async function loadAll() {
   // Views do all the calculation; client only fetches + renders.
   const [
     dailyRaw, workoutsRaw, inbodyRaw, gridRaw,
-    hero, bodyDelta, workoutStats, sober, weekCompare, insights,
+    hero, bodyDelta, workoutStats, sober, weekCompare, insights, lossPlan,
   ] = await Promise.all([
     sb('v_daily?order=date.desc&limit=2000'),
     sb('workouts?order=date.desc&limit=2000'),
@@ -59,6 +59,7 @@ async function loadAll() {
     sb('v_sober'),
     sb('v_week_compare'),
     sb('v_insights'),
+    sb('v_loss_plan'),
   ]);
 
   const daily = dailyRaw.map(d => ({
@@ -117,6 +118,7 @@ async function loadAll() {
     sober:        sober[0]        || null,
     weekCompare:  weekCompare     || [],
     insights:     insights[0]     || null,
+    lossPlan:     lossPlan[0]     || null,
   };
 }
 
@@ -158,28 +160,31 @@ function animateNumber(el, to, opts = {}) {
 }
 
 // ───────── 1. Hero ─────────
-function renderHero(hero) {
+function renderHero(hero, lossPlan) {
   if (hero) {
     animateNumber($('dDay'), Math.max(0, hero.d_day), { decimals: 0 });
   }
 
   if (hero && hero.current_bf != null) {
-    const bfPct   = Number(hero.bf_pct_done);
-    const timePct = Number(hero.time_pct_done);
+    const bfPct = Number(hero.bf_pct_done);
 
     animateNumber($('currentBf'), Number(hero.current_bf), { decimals: 1, suffix: '%' });
     $('progressFill').style.width = `${bfPct}%`;
     animateNumber($('progressPct'), bfPct, { decimals: 0, suffix: '% 완료' });
 
-    // Pace: BF progress vs time progress
-    const paceDiff = bfPct - timePct;
+    // Pace line → 도달 예상일 (v_loss_plan 기반)
     const paceEl = $('paceLine');
-    if (Math.abs(paceDiff) < 5) {
-      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · 페이스 적절`;
-    } else if (paceDiff > 0) {
-      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · <span class="good">+${paceDiff.toFixed(0)}%p 앞섬</span>`;
+    if (lossPlan && lossPlan.projected_date) {
+      const projected = fmtMonthDay(lossPlan.projected_date);
+      if (lossPlan.is_capped) {
+        // 목표일에 무리 → 안전 속도 적용, 예상 도달일 표시
+        paceEl.innerHTML = `안전 속도 적용 중 · 예상 도달 <span class="proj">${projected}</span>`;
+      } else {
+        // 목표일 내 도달 가능
+        paceEl.innerHTML = `<span class="good">현재 페이스로 목표일 내 도달</span> · 예상 ${projected}`;
+      }
     } else {
-      paceEl.innerHTML = `시간 ${timePct.toFixed(0)}% · <span class="warn">${paceDiff.toFixed(0)}%p 뒤짐</span>`;
+      paceEl.textContent = '';
     }
   } else {
     $('currentBf').textContent = '—';
@@ -191,6 +196,12 @@ function renderHero(hero) {
   const now = new Date();
   const time = now.toLocaleTimeString('ko-KR', { timeZone: 'Asia/Seoul', hour: '2-digit', minute: '2-digit', hour12: false });
   $('lastUpdated').textContent = `업데이트 ${time}`;
+}
+
+// "2026-07-21" → "7월 21일"
+function fmtMonthDay(ymd) {
+  const [, m, d] = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/) || [];
+  return m && d ? `${parseInt(m)}월 ${parseInt(d)}일` : ymd;
 }
 
 // ───────── 2. Workout heatmap ─────────
@@ -894,7 +905,7 @@ async function render() {
     sb(`meals?date=eq.${today}&select=meal_type`),  // meal-strip dots only
   ]);
 
-  renderHero(data.hero);
+  renderHero(data.hero, data.lossPlan);
   renderHeatmap(data.grid, data.workouts, data.workoutStats);
   renderComposition(data.daily, data.inbody, data.bodyDelta);
   renderTodayMacros(data.daily, todayMeals);
