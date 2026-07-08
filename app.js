@@ -166,11 +166,24 @@ function renderHero(hero, lossPlan) {
   }
 
   if (hero && hero.current_bf != null) {
-    const bfPct = Number(hero.bf_pct_done);
+    const bfPct   = Number(hero.bf_pct_done);
+    const timePct = Number(hero.time_pct_done);
 
     animateNumber($('currentBf'), Number(hero.current_bf), { decimals: 1, suffix: '%' });
     $('progressFill').style.width = `${bfPct}%`;
     animateNumber($('progressPct'), bfPct, { decimals: 0, suffix: '% 완료' });
+
+    // 일정 진행률 마커: 위치 = timePct, 상태색 = 체지방 진행 대비 앞/뒤
+    const marker = $('progressMarker');
+    if (marker) {
+      marker.style.left = `${Math.min(100, Math.max(0, timePct))}%`;
+      $('markerLabel').textContent = `일정 ${timePct.toFixed(0)}%`;
+      // 체지방 진행이 일정보다 뒤처지면 behind(rose), 앞서면 ahead(ice), 비슷하면 중립
+      marker.classList.remove('behind', 'ahead');
+      const diff = bfPct - timePct;
+      if (diff < -3)      marker.classList.add('behind');
+      else if (diff > 3)  marker.classList.add('ahead');
+    }
 
     // Pace line → 도달 예상일 (v_loss_plan 기반)
     const paceEl = $('paceLine');
@@ -928,6 +941,15 @@ function resetAnimations() {
     fill.style.width = '0%';
     void fill.offsetHeight;
     fill.style.transition = '';
+  }
+
+  // Schedule marker
+  const marker = $('progressMarker');
+  if (marker) {
+    marker.style.transition = 'none';
+    marker.style.left = '0%';
+    void marker.offsetHeight;
+    marker.style.transition = '';
   }
 
   // Ring strokes — back to fully empty
