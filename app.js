@@ -177,7 +177,6 @@ function renderHero(hero, lossPlan) {
     const marker = $('progressMarker');
     if (marker) {
       marker.style.left = `${Math.min(100, Math.max(0, timePct))}%`;
-      $('markerLabel').textContent = `일정 ${timePct.toFixed(0)}%`;
       // 체지방 진행이 일정보다 뒤처지면 behind(rose), 앞서면 ahead(ice), 비슷하면 중립
       marker.classList.remove('behind', 'ahead');
       const diff = bfPct - timePct;
