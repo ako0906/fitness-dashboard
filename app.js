@@ -177,8 +177,8 @@ function renderHero(hero, lossPlan) {
     if (lossPlan && lossPlan.projected_date) {
       const projected = fmtMonthDay(lossPlan.projected_date);
       if (lossPlan.is_capped) {
-        // 목표일에 무리 → 안전 속도 적용, 예상 도달일 표시
-        paceEl.innerHTML = `안전 속도 적용 중 · 예상 도달 <span class="proj">${projected}</span>`;
+        // 목표일에 무리 → 적정 속도 적용, 예상 도달일 표시 (지연이므로 경고색)
+        paceEl.innerHTML = `적정 속도 적용 중 · 예상 도달 <span class="warn">${projected}</span>`;
       } else {
         // 목표일 내 도달 가능
         paceEl.innerHTML = `<span class="good">현재 페이스로 목표일 내 도달</span> · 예상 ${projected}`;
