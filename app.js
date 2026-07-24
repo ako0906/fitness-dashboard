@@ -503,7 +503,7 @@ function renderBodyChart(daily, inbody, metricKey) {
       pointBorderColor: '#0A0E16',
       pointBorderWidth: 2,
       fill: true,
-      spanGaps: false,
+      spanGaps: true,
     },
     {
       label: 'InBody',
@@ -940,7 +940,11 @@ function renderInsights(insights) {
     paceText = `${weekRate >= 0 ? '+' : ''}${weekRate.toFixed(2)}%p / 주`;
   }
 
-  // Hero: 7/17 forecast (big)
+  // Hero: 목표일 기준 예측 (big)
+  const labelEl = $('forecastLabel');
+  if (labelEl && CONFIG.target.date) {
+    labelEl.textContent = `${fmtMonthDay(CONFIG.target.date)} 예측 체지방률`;
+  }
   const bigEl  = $('forecastBig');
   const metaEl = $('forecastMeta');
   if (forecast != null) {
