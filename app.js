@@ -4,16 +4,16 @@
 
 // ───────── Config ─────────
 const CONFIG = {
+  // fallback only — 실제 값은 v_hero / v_daily 에서 로드됨
   target: {
-    date: '2026-07-17',
-    bf:   14.8,
+    date: '2026-08-31',
+    bf:   14.0,
     startBf: 17.6,
     startDate: '2026-05-29',
   },
   macros: {
-    // fallback only — real targets come from v_daily (server-computed)
-    workout: { kcal: 2200, carb: 260, protein: 165, fat: 55 },
-    rest:    { kcal: 1600, carb: 110, protein: 165, fat: 55 },
+    workout: { kcal: 1820, carb: 182, protein: 156, fat: 52 },
+    rest:    { kcal: 1620, carb: 132, protein: 156, fat: 52 },
   },
 };
 
@@ -163,6 +163,15 @@ function animateNumber(el, to, opts = {}) {
 function renderHero(hero, lossPlan) {
   if (hero) {
     animateNumber($('dDay'), Math.max(0, hero.d_day), { decimals: 0 });
+
+    // 목표 설정을 서버 값으로 동기화 (하드코딩 제거)
+    if (hero.target_bf   != null) CONFIG.target.bf      = Number(hero.target_bf);
+    if (hero.start_bf    != null) CONFIG.target.startBf = Number(hero.start_bf);
+    if (hero.target_date != null) CONFIG.target.date    = hero.target_date;
+
+    if (hero.target_date != null) $('targetDateLabel').textContent = fmtFullDate(hero.target_date);
+    if (hero.target_bf   != null) $('targetBfLabel').textContent   = `목표 ${fmtPct(hero.target_bf)}`;
+    if (hero.start_bf    != null) $('startBfLabel').textContent    = `시작 ${fmtPct(hero.start_bf)}`;
   }
 
   if (hero && hero.current_bf != null) {
@@ -188,12 +197,17 @@ function renderHero(hero, lossPlan) {
     const paceEl = $('paceLine');
     if (lossPlan && lossPlan.projected_date) {
       const projected = fmtMonthDay(lossPlan.projected_date);
-      if (lossPlan.is_capped) {
-        // 목표일에 무리 → 적정 속도 적용, 예상 도달일 표시 (지연이므로 경고색)
-        paceEl.innerHTML = `적정 속도 적용 중 · 예상 도달 <span class="warn">${projected}</span>`;
+      const late = hero.target_date && lossPlan.projected_date > hero.target_date;
+
+      if (lossPlan.is_over_safe) {
+        // 감량 속도가 안전 상한 초과 → 근손실 위험 경고
+        paceEl.innerHTML = `<span class="warn">감량 속도 과다</span> · 예상 도달 ${projected}`;
+      } else if (late) {
+        // 목표일보다 늦음
+        paceEl.innerHTML = `목표일 초과 · 예상 도달 <span class="warn">${projected}</span>`;
       } else {
-        // 목표일 내 도달 가능
-        paceEl.innerHTML = `<span class="good">현재 페이스로 목표일 내 도달</span> · 예상 ${projected}`;
+        // 목표일 내 도달
+        paceEl.innerHTML = `<span class="good">목표일 내 도달 예상</span> · ${projected}`;
       }
     } else {
       paceEl.textContent = '';
@@ -214,6 +228,18 @@ function renderHero(hero, lossPlan) {
 function fmtMonthDay(ymd) {
   const m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
   return m ? `${parseInt(m[2])}월 ${parseInt(m[3])}일` : ymd;
+}
+
+// "2026-08-31" → "2026년 8월 31일"
+function fmtFullDate(ymd) {
+  const m = String(ymd).match(/(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}년 ${parseInt(m[2])}월 ${parseInt(m[3])}일` : ymd;
+}
+
+// 14.0 → "14%", 14.8 → "14.8%"
+function fmtPct(v) {
+  const n = Number(v);
+  return `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
 }
 
 // ───────── 2. Workout heatmap ─────────
@@ -411,7 +437,7 @@ const METRIC_CONFIG = {
   bf: {
     key: 'bf', title: '체지방률 추이', unit: '%', color: '#6FE0C2',
     fillBg: 'rgba(111, 224, 194, 0.07)', decimals: 2,
-    target: () => CONFIG.target.bf, targetLabel: () => `목표 ${CONFIG.target.bf}%`,
+    target: () => CONFIG.target.bf, targetLabel: () => `목표 ${fmtPct(CONFIG.target.bf)}`,
   },
   weight: {
     key: 'weight', title: '체중 추이', unit: 'kg', color: '#A8D8F0',
