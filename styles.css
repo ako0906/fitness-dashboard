@@ -1052,6 +1052,7 @@ button { font: inherit; cursor: pointer; }
   transition: max-height 0.4s var(--ease), opacity 0.35s var(--ease),
               margin 0.4s var(--ease), padding 0.4s var(--ease);
 }
+.coach-note[hidden] { display: none; }
 .coach-note.dismissing { opacity: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
 .coach-accent {
   position: absolute;
@@ -1128,7 +1129,7 @@ button { font: inherit; cursor: pointer; }
 .nav-sentinel { height: 1px; }
 .chip-nav {
   position: sticky;
-  top: 8px;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
   z-index: 60;
   display: flex;
   justify-content: center;
@@ -1169,7 +1170,18 @@ button { font: inherit; cursor: pointer; }
   align-items: center;
   gap: 10px;
   margin: 26px 2px 2px;
-  scroll-margin-top: 62px;
+  scroll-margin-top: calc(env(safe-area-inset-top, 0px) + 62px);
+}
+
+/* standalone(홈화면 앱)에서 상태바 영역 스크림 — 콘텐츠가 시계 뒤로 비치는 것 방지 */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: calc(env(safe-area-inset-top, 0px) + 4px);
+  background: linear-gradient(180deg, var(--bg) 55%, rgba(10, 14, 22, 0));
+  z-index: 70;
+  pointer-events: none;
 }
 .group-head span {
   font-size: 11px;

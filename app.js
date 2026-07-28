@@ -1157,7 +1157,11 @@ function renderCoachNote(notes) {
       el.classList.add('dismissing');
       el.style.maxHeight = '0px';
     });
-    setTimeout(() => { el.hidden = true; el.classList.remove('dismissing'); el.style.maxHeight = ''; }, 420);
+    setTimeout(() => {
+      el.classList.remove('dismissing');
+      el.style.maxHeight = '';
+      el.hidden = true;
+    }, 420);
   };
 }
 
