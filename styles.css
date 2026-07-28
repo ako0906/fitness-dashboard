@@ -1211,3 +1211,47 @@ body::before {
   .reveal { opacity: 1; transform: none; }
   .coach-pulse { animation: none; }
 }
+
+/* ═══════════ 당겨서 새로고침 ═══════════ */
+.ptr {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 4px);
+  left: 50%;
+  margin-left: -17px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(27, 34, 48, 0.92);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  opacity: 0;
+  transform: translateY(0);
+  z-index: 80;
+  pointer-events: none;
+  transition: transform 0.32s var(--ease), opacity 0.32s var(--ease);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.ptr.ready { color: var(--ice); border-color: rgba(168, 216, 240, 0.5); }
+.ptr.loading .ptr-spin { animation: ptrSpin 0.75s linear infinite; }
+.ptr-spin { display: grid; place-items: center; }
+@keyframes ptrSpin { to { transform: rotate(360deg); } }
+
+/* ═══════════ 터치 피드백 ═══════════ */
+.card, .lift-card, .metric-card, .chip, .coach-close, .refresh {
+  -webkit-tap-highlight-color: transparent;
+}
+.metric-card:active, .lift-card:active {
+  transform: scale(0.975);
+  transition: transform 0.12s var(--ease);
+}
+.heatmap-cell:active { transform: scale(0.82); }
+.heatmap-cell { transition: transform 0.14s var(--ease), background 0.2s var(--ease); }
+
+/* 히어로 패럴랙스가 자연스럽게 */
+header { will-change: transform, opacity; }
+
+/* 리빌 스태거 — 그룹 내 카드가 차례로 */
+.reveal { transition-delay: 0.02s; }
+.group-head + .card.reveal { transition-delay: 0.06s; }

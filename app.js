@@ -157,20 +157,48 @@ function addDays(d, n) {
 }
 
 // ───────── Animation helper ─────────
+// ───────── 뷰포트 진입 시 실행 (지연 애니메이션) ─────────
+const pendingByCard = new Map();   // card element -> [fn, ...]
+
+function isOnScreen(el) {
+  if (!el) return false;
+  const r = el.getBoundingClientRect();
+  return r.top < window.innerHeight * 0.94 && r.bottom > 0;
+}
+
+// anchor가 화면에 있으면 즉시, 없으면 그 카드가 보일 때 실행
+function whenVisible(anchor, fn) {
+  const card = anchor?.closest?.('.card, .hero, header, .coach-note') || null;
+  // 이미 노출된 카드(재렌더 포함)거나 화면 안이면 즉시 실행
+  if (!card || card.classList.contains('in') || isOnScreen(card)) { fn(); return; }
+  if (!pendingByCard.has(card)) pendingByCard.set(card, []);
+  pendingByCard.get(card).push(fn);
+}
+
+function flushPending(card) {
+  const fns = pendingByCard.get(card);
+  if (!fns) return;
+  pendingByCard.delete(card);
+  fns.forEach(fn => { try { fn(); } catch (e) { console.error(e); } });
+}
+
 function animateNumber(el, to, opts = {}) {
+  if (!el) return;
   const { decimals = 0, suffix = '', duration = 800 } = opts;
-  const from = parseFloat(String(el.dataset.value || '0')) || 0;
-  el.dataset.value = String(to);
-  const start = performance.now();
-  function tick(now) {
-    const t = Math.min(1, (now - start) / duration);
-    // ease-out cubic
-    const eased = 1 - Math.pow(1 - t, 3);
-    const v = from + (to - from) * eased;
-    el.textContent = v.toFixed(decimals) + suffix;
-    if (t < 1) requestAnimationFrame(tick);
-  }
-  requestAnimationFrame(tick);
+  // 화면 밖이면 시작 상태로 두고, 보일 때 카운트업
+  whenVisible(el, () => {
+    const from = parseFloat(String(el.dataset.value || '0')) || 0;
+    el.dataset.value = String(to);
+    const start = performance.now();
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = from + (to - from) * eased;
+      el.textContent = v.toFixed(decimals) + suffix;
+      if (t < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  });
 }
 
 // ───────── 1. Hero ─────────
@@ -233,13 +261,15 @@ function renderHero(hero, goalPlan) {
     const unit = hero.unit || 'kg';
 
     animateNumber($('currentBf'), Number(hero.cur_value), { decimals: 1, suffix: unit });
-    $('progressFill').style.width = `${donePct}%`;
+    whenVisible($('progressFill'), () => { $('progressFill').style.width = `${donePct}%`; });
     animateNumber($('progressPct'), donePct, { decimals: 0, suffix: '% 완료' });
 
     // 일정 마커: 위치 = timePct, 상태색 = 목표 진행 대비 앞/뒤
     const marker = $('progressMarker');
     if (marker) {
-      marker.style.left = `${Math.min(100, Math.max(0, timePct))}%`;
+      whenVisible(marker, () => {
+        marker.style.left = `${Math.min(100, Math.max(0, timePct))}%`;
+      });
       marker.classList.remove('behind', 'ahead');
       const diff = donePct - timePct;
       if (diff < -3)      marker.classList.add('behind');
@@ -778,7 +808,8 @@ function renderTodayMacros(daily, todayMeals) {
           <circle class="ring-bg" cx="30" cy="30" r="${r0}" />
           <circle class="ring-fg ${cls}" cx="30" cy="30" r="${r0}"
                   stroke-dasharray="${circ}"
-                  stroke-dashoffset="${offset}" />
+                  stroke-dashoffset="${circ}"
+                  data-offset="${offset}" />
         </svg>
         <span class="ring-label">${r.label}</span>
         <span class="ring-value">${Math.round(r.value)}${unit}</span>
@@ -786,6 +817,13 @@ function renderTodayMacros(daily, todayMeals) {
       </div>
     `;
   }).join('');
+
+  // 링: 화면에 들어올 때 0 → 목표치로 채워짐
+  document.querySelectorAll('.ring-fg[data-offset]').forEach(el => {
+    whenVisible(el, () => {
+      requestAnimationFrame(() => el.setAttribute('stroke-dashoffset', el.dataset.offset));
+    });
+  });
 
   // Meal strip — which meals came in today
   const slots = ['아침', '점심', '저녁', '간식'];
@@ -1183,23 +1221,36 @@ function initChipNav() {
     });
   });
 
-  // 스크롤 스파이: 그룹 헤더 위치 기준으로 활성 칩 결정
+  // 스크롤 스파이: 뷰포트 기준 (offsetTop은 safe-area 패딩 때문에 어긋남)
   const marks = ['g-body', 'g-training', 'g-review']
     .map(id => ({ id, el: $(id) })).filter(m => m.el);
   const setActive = (id) => chips.forEach(c => c.classList.toggle('active', c.dataset.target === id));
 
+  // 점프 착지 지점(scroll-margin-top)보다 살짝 아래를 임계선으로 →
+  // 칩을 눌러 이동한 직후 바로 해당 칩이 활성화됨
+  // 네비 자체의 실제 위치를 재서 safe-area까지 자동 반영
+  const threshold = () => nav.getBoundingClientRect().bottom + 32;
+
   let ticking = false;
-  window.addEventListener('scroll', () => {
+  const spy = () => {
     if (ticking) return;
     ticking = true;
     requestAnimationFrame(() => {
-      const y = window.scrollY + 90; // 스티키 네비 높이 보정
+      const line = threshold();
       let cur = 'top';
-      for (const m of marks) if (m.el.offsetTop <= y) cur = m.id;
+      for (const m of marks) {
+        if (m.el.getBoundingClientRect().top <= line) cur = m.id;
+      }
+      // 바닥에 닿으면 마지막 그룹 활성
+      if (window.innerHeight + window.scrollY >= document.body.scrollHeight - 4) {
+        cur = marks[marks.length - 1]?.id || cur;
+      }
       setActive(cur);
       ticking = false;
     });
-  }, { passive: true });
+  };
+  window.addEventListener('scroll', spy, { passive: true });
+  spy();
 
   // 스티키 상태 감지 (배경 블러 강화용)
   const sentinel = $('navSentinel');
@@ -1215,14 +1266,96 @@ let revealInited = false;
 function initReveal() {
   if (revealInited) return;
   revealInited = true;
-  if (!('IntersectionObserver' in window)) return;
   const targets = document.querySelectorAll('.card, .group-head, .coach-note');
+  if (!('IntersectionObserver' in window)) {
+    targets.forEach(t => { t.classList.add('in'); flushPending(t); });
+    return;
+  }
   const io = new IntersectionObserver((entries) => {
     entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      if (!e.isIntersecting) return;
+      e.target.classList.add('in');
+      // 카드가 보이면 그 안의 숫자·바·링 애니메이션 실행
+      setTimeout(() => flushPending(e.target), 90);
+      io.unobserve(e.target);
     });
   }, { threshold: 0.06, rootMargin: '0px 0px -4% 0px' });
   targets.forEach(t => { t.classList.add('reveal'); io.observe(t); });
+}
+
+// ───────── 당겨서 새로고침 ─────────
+let ptrInited = false;
+function initPullToRefresh() {
+  if (ptrInited) return;
+  ptrInited = true;
+  const ind = $('ptr');
+  if (!ind) return;
+  const MAX = 88, TRIGGER = 62;
+  let startY = 0, pulling = false, dist = 0, busy = false;
+
+  const setPull = (d) => {
+    ind.style.transform = `translateY(${d}px)`;
+    ind.style.opacity = String(Math.min(1, d / 40));
+    const spin = ind.querySelector('.ptr-spin');
+    if (spin) spin.style.transform = `rotate(${d * 4}deg)`;
+    ind.classList.toggle('ready', d >= TRIGGER);
+  };
+
+  document.addEventListener('touchstart', (e) => {
+    if (busy || window.scrollY > 0) return;
+    startY = e.touches[0].clientY;
+    pulling = true;
+    dist = 0;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (e) => {
+    if (!pulling || busy) return;
+    const d = e.touches[0].clientY - startY;
+    if (d <= 0 || window.scrollY > 0) { pulling = false; setPull(0); return; }
+    dist = Math.min(MAX, d * 0.5);   // 저항감
+    ind.style.transition = 'none';
+    setPull(dist);
+  }, { passive: true });
+
+  document.addEventListener('touchend', async () => {
+    if (!pulling || busy) return;
+    pulling = false;
+    ind.style.transition = '';
+    if (dist >= TRIGGER) {
+      busy = true;
+      ind.classList.add('loading');
+      setPull(TRIGGER);
+      try { await render(); } finally {
+        setTimeout(() => {
+          ind.classList.remove('loading', 'ready');
+          setPull(0);
+          busy = false;
+        }, 320);
+      }
+    } else {
+      setPull(0);
+    }
+  }, { passive: true });
+}
+
+// ───────── 히어로 패럴랙스 ─────────
+let parallaxInited = false;
+function initHeroParallax() {
+  if (parallaxInited) return;
+  parallaxInited = true;
+  const hero = document.querySelector('header');
+  if (!hero) return;
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = Math.min(window.scrollY, 220);
+      hero.style.transform = `translateY(${y * 0.18}px)`;
+      hero.style.opacity = String(Math.max(0.35, 1 - y / 300));
+      ticking = false;
+    });
+  }, { passive: true });
 }
 
 // ───────── 리프팅 (1RM) ─────────
@@ -1361,6 +1494,8 @@ async function render() {
   renderLifts(data.liftCards, data.liftTrend);
   initChipNav();
   initReveal();
+  initPullToRefresh();
+  initHeroParallax();
 }
 
 function resetAnimations() {
