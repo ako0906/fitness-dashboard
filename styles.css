@@ -955,3 +955,83 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ───────── Guard badge (감시 지표) ───────── */
+.hero-eyebrow-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.guard-badge {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.guard-badge.ok       { color: var(--mint); border-color: rgba(111, 224, 194, 0.35); }
+.guard-badge.warning  { color: #E8C9A0; border-color: rgba(232, 201, 160, 0.4); }
+.guard-badge.breached { color: var(--rose); border-color: rgba(232, 155, 176, 0.5); background: rgba(232, 155, 176, 0.08); }
+
+/* ───────── 리프팅 카드 ───────── */
+.lift-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.lift-card {
+  background: var(--surface-2);
+  border-radius: var(--r-md);
+  padding: 12px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: border-color var(--t-base) var(--ease), background var(--t-base) var(--ease);
+}
+.lift-card.selected {
+  border-color: rgba(168, 216, 240, 0.5);
+  background: var(--surface);
+}
+.lift-card.selected .lift-cat { color: var(--ice); }
+.lift-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+.lift-cat {
+  font-size: 11px;
+  color: var(--text-2);
+}
+.lift-lag {
+  font-size: 9px;
+  color: var(--rose);
+  border: 1px solid rgba(232, 155, 176, 0.4);
+  border-radius: 999px;
+  padding: 1px 5px;
+}
+.lift-gain {
+  font-size: 18px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+.lift-gain.good { color: var(--mint); }
+.lift-gain.warn { color: var(--rose); }
+.lift-meta {
+  font-size: 9px;
+  color: var(--text-3);
+}
+.lift-empty {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  padding: 22px 0 10px;
+}

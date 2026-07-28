@@ -6,14 +6,19 @@
 const CONFIG = {
   // fallback only — 실제 값은 v_hero / v_daily 에서 로드됨
   target: {
-    date: '2026-08-31',
-    bf:   14.0,
-    startBf: 17.6,
-    startDate: '2026-05-29',
+    date: '2026-10-19',
+    metric: 'weight_kg',
+    unit: 'kg',
+    goalValue: 70.0,
+    startValue: 65.2,
+    startDate: '2026-05-29',   // 잔디 시작 기준 (기록 시작일)
+    guardMetric: 'bf_pct',
+    guardMax: 16.0,
+    phase: 'lean_bulk',
   },
   macros: {
-    workout: { kcal: 1820, carb: 182, protein: 156, fat: 52 },
-    rest:    { kcal: 1620, carb: 132, protein: 156, fat: 52 },
+    workout: { kcal: 2579, carb: 383, protein: 144, fat: 52 },
+    rest:    { kcal: 2379, carb: 333, protein: 144, fat: 52 },
   },
 };
 
@@ -47,7 +52,8 @@ async function loadAll() {
   // Views do all the calculation; client only fetches + renders.
   const [
     dailyRaw, workoutsRaw, inbodyRaw, gridRaw,
-    hero, bodyDelta, workoutStats, sober, weekCompare, insights, lossPlan,
+    hero, bodyDelta, workoutStats, sober, weekCompare, insights, goalPlan,
+    liftCards, liftTrend,
   ] = await Promise.all([
     sb('v_daily?order=date.desc&limit=2000'),
     sb('workouts?order=date.desc&limit=2000'),
@@ -59,7 +65,9 @@ async function loadAll() {
     sb('v_sober'),
     sb('v_week_compare'),
     sb('v_insights'),
-    sb('v_loss_plan'),
+    sb('v_goal_plan'),
+    sb('v_lift_category_card'),
+    sb('v_lift_trend?order=date.asc&limit=3000'),
   ]);
 
   const daily = dailyRaw.map(d => ({
@@ -118,7 +126,9 @@ async function loadAll() {
     sober:        sober[0]        || null,
     weekCompare:  weekCompare     || [],
     insights:     insights[0]     || null,
-    lossPlan:     lossPlan[0]     || null,
+    goalPlan:     goalPlan[0]     || null,
+    liftCards:    liftCards       || [],
+    liftTrend:    liftTrend       || [],
   };
 }
 
@@ -160,53 +170,90 @@ function animateNumber(el, to, opts = {}) {
 }
 
 // ───────── 1. Hero ─────────
-function renderHero(hero, lossPlan) {
+function renderHero(hero, goalPlan) {
   if (hero) {
     animateNumber($('dDay'), Math.max(0, hero.d_day), { decimals: 0 });
 
-    // 목표 설정을 서버 값으로 동기화 (하드코딩 제거)
-    if (hero.target_bf   != null) CONFIG.target.bf      = Number(hero.target_bf);
-    if (hero.start_bf    != null) CONFIG.target.startBf = Number(hero.start_bf);
-    if (hero.target_date != null) CONFIG.target.date    = hero.target_date;
+    // 목표/페이즈 설정을 서버 값으로 동기화
+    const unit = hero.unit || 'kg';
+    if (hero.goal_value  != null) CONFIG.target.goalValue  = Number(hero.goal_value);
+    if (hero.start_value != null) CONFIG.target.startValue = Number(hero.start_value);
+    if (hero.target_date != null) CONFIG.target.date       = hero.target_date;
+    CONFIG.target.metric     = hero.goal_metric || 'weight_kg';
+    CONFIG.target.unit       = unit;
+    CONFIG.target.guardMax   = hero.guard_max != null ? Number(hero.guard_max) : null;
+    CONFIG.target.guardMetric = hero.guard_metric || null;
+    CONFIG.target.phase      = hero.phase || 'cut';
 
+    $('metricEyebrow').textContent = `${hero.metric_label || ''} 진행`;
     if (hero.target_date != null) $('targetDateLabel').textContent = fmtFullDate(hero.target_date);
-    if (hero.target_bf   != null) $('targetBfLabel').textContent   = `목표 ${fmtPct(hero.target_bf)}`;
-    if (hero.start_bf    != null) $('startBfLabel').textContent    = `시작 ${fmtPct(hero.start_bf)}`;
+    if (hero.goal_value  != null) $('targetBfLabel').textContent   = `목표 ${fmtVal(hero.goal_value, unit)}`;
+    if (hero.start_value != null) $('startBfLabel').textContent    = `시작 ${fmtVal(hero.start_value, unit)}`;
+
+    // 푸터 페이즈 라벨
+    const footer = $('footerPhase');
+    if (footer && hero.phase_label) {
+      const phaseEn = hero.phase === 'lean_bulk' ? 'Lean Bulk' : hero.phase === 'cut' ? 'Cut' : hero.phase;
+      footer.textContent = `© 2026 ako · ${phaseEn} Phase`;
+    }
+
+    // Guard 배지 (감시 지표: 예. 벌크 중 체지방률 상한)
+    const badge = $('guardBadge');
+    if (badge) {
+      if (hero.guard_metric && hero.guard_value != null) {
+        const gLabel = hero.guard_metric === 'bf_pct' ? '체지방률' :
+                       hero.guard_metric === 'weight_kg' ? '체중' : '골격근량';
+        const gUnit  = hero.guard_metric === 'bf_pct' ? '%' : 'kg';
+        const gVal   = Number(hero.guard_value);
+        badge.hidden = false;
+        badge.classList.remove('ok', 'warning', 'breached');
+        if (hero.guard_breached) {
+          badge.classList.add('breached');
+          badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit} · 상한 초과`;
+        } else if (hero.guard_warning) {
+          badge.classList.add('warning');
+          badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit} · 상한 근접`;
+        } else {
+          badge.classList.add('ok');
+          badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit}`;
+        }
+      } else {
+        badge.hidden = true;
+      }
+    }
   }
 
-  if (hero && hero.current_bf != null) {
-    const bfPct   = Number(hero.bf_pct_done);
+  if (hero && hero.cur_value != null) {
+    const donePct = Number(hero.pct_done);
     const timePct = Number(hero.time_pct_done);
+    const unit = hero.unit || 'kg';
 
-    animateNumber($('currentBf'), Number(hero.current_bf), { decimals: 1, suffix: '%' });
-    $('progressFill').style.width = `${bfPct}%`;
-    animateNumber($('progressPct'), bfPct, { decimals: 0, suffix: '% 완료' });
+    animateNumber($('currentBf'), Number(hero.cur_value), { decimals: 1, suffix: unit });
+    $('progressFill').style.width = `${donePct}%`;
+    animateNumber($('progressPct'), donePct, { decimals: 0, suffix: '% 완료' });
 
-    // 일정 진행률 마커: 위치 = timePct, 상태색 = 체지방 진행 대비 앞/뒤
+    // 일정 마커: 위치 = timePct, 상태색 = 목표 진행 대비 앞/뒤
     const marker = $('progressMarker');
     if (marker) {
       marker.style.left = `${Math.min(100, Math.max(0, timePct))}%`;
-      // 체지방 진행이 일정보다 뒤처지면 behind(rose), 앞서면 ahead(ice), 비슷하면 중립
       marker.classList.remove('behind', 'ahead');
-      const diff = bfPct - timePct;
+      const diff = donePct - timePct;
       if (diff < -3)      marker.classList.add('behind');
       else if (diff > 3)  marker.classList.add('ahead');
     }
 
-    // Pace line → 도달 예상일 (v_loss_plan 기반)
+    // Pace line → 도달 예상일 (v_goal_plan 기반, 페이즈별 문구)
     const paceEl = $('paceLine');
-    if (lossPlan && lossPlan.projected_date) {
-      const projected = fmtMonthDay(lossPlan.projected_date);
-      const late = hero.target_date && lossPlan.projected_date > hero.target_date;
+    if (goalPlan && goalPlan.projected_date) {
+      const projected = fmtMonthDay(goalPlan.projected_date);
+      const late = hero.target_date && goalPlan.projected_date > hero.target_date;
+      const speedWord = hero.phase === 'lean_bulk' ? '증량' : '감량';
 
-      if (lossPlan.is_over_safe) {
-        // 감량 속도가 안전 상한 초과 → 근손실 위험 경고
-        paceEl.innerHTML = `<span class="warn">감량 속도 과다</span> · 예상 도달 ${projected}`;
+      if (goalPlan.is_over_safe) {
+        paceEl.innerHTML = `<span class="warn">${speedWord} 속도 과다</span> · 예상 도달 ${projected}`;
       } else if (late) {
-        // 목표일보다 늦음
         paceEl.innerHTML = `목표일 초과 · 예상 도달 <span class="warn">${projected}</span>`;
       } else {
-        // 목표일 내 도달
         paceEl.innerHTML = `<span class="good">목표일 내 도달 예상</span> · ${projected}`;
       }
     } else {
@@ -237,9 +284,10 @@ function fmtFullDate(ymd) {
 }
 
 // 14.0 → "14%", 14.8 → "14.8%"
-function fmtPct(v) {
+// 값 + 단위 (70 → "70kg", 16.0 → "16%")
+function fmtVal(v, unit) {
   const n = Number(v);
-  return `${Number.isInteger(n) ? n : n.toFixed(1)}%`;
+  return `${Number.isInteger(n) ? n : n.toFixed(1)}${unit || ''}`;
 }
 
 // ───────── 2. Workout heatmap ─────────
@@ -434,22 +482,42 @@ function renderMetricCard(cardId, daily, delta, key, unit, opts = {}) {
 
 // 지표별 차트 설정
 const METRIC_CONFIG = {
+  // 기준선: 이 지표가 목표(goal_metric)면 목표선, 감시(guard_metric)면 상한선
   bf: {
     key: 'bf', title: '체지방률 추이', unit: '%', color: '#6FE0C2',
     fillBg: 'rgba(111, 224, 194, 0.07)', decimals: 2,
-    target: () => CONFIG.target.bf, targetLabel: () => `목표 ${fmtPct(CONFIG.target.bf)}`,
+    target: () => metricLine('bf_pct').value,
+    targetLabel: () => metricLine('bf_pct').label,
+    lineColor: () => metricLine('bf_pct').color,
   },
   weight: {
     key: 'weight', title: '체중 추이', unit: 'kg', color: '#A8D8F0',
     fillBg: 'rgba(168, 216, 240, 0.07)', decimals: 2,
-    target: () => null, targetLabel: () => '최근 60일',
+    target: () => metricLine('weight_kg').value,
+    targetLabel: () => metricLine('weight_kg').label,
+    lineColor: () => metricLine('weight_kg').color,
   },
   skeletal: {
     key: 'skeletal', title: '골격근량 추이', unit: 'kg', color: '#B8B5F0',
     fillBg: 'rgba(184, 181, 240, 0.07)', decimals: 2,
-    target: () => null, targetLabel: () => '최근 60일',
+    target: () => metricLine('skeletal_kg').value,
+    targetLabel: () => metricLine('skeletal_kg').label,
+    lineColor: () => metricLine('skeletal_kg').color,
   },
 };
+
+// 지표별 기준선 결정: 목표 지표 → 목표선(mint) / 감시 지표 → 상한선(rose)
+function metricLine(metric) {
+  const t = CONFIG.target;
+  const unit = metric === 'bf_pct' ? '%' : 'kg';
+  if (t.metric === metric && t.goalValue != null) {
+    return { value: t.goalValue, label: `목표 ${fmtVal(t.goalValue, unit)}`, color: 'rgba(111, 224, 194, 0.45)' };
+  }
+  if (t.guardMetric === metric && t.guardMax != null) {
+    return { value: t.guardMax, label: `상한 ${fmtVal(t.guardMax, unit)}`, color: 'rgba(232, 155, 176, 0.5)' };
+  }
+  return { value: null, label: '최근 60일', color: null };
+}
 let currentMetric = 'bf';
 
 function renderBodyChart(daily, inbody, metricKey) {
@@ -516,13 +584,13 @@ function renderBodyChart(daily, inbody, metricKey) {
     },
   ];
 
-  // 목표선 (체지방률만)
+  // 기준선 (목표 지표=목표선 / 감시 지표=상한선)
   const targetVal = cfg.target();
   if (targetVal != null) {
     datasets.push({
       label: cfg.targetLabel(),
       data: filtered.map(() => targetVal),
-      borderColor: 'rgba(111, 224, 194, 0.45)',
+      borderColor: (cfg.lineColor && cfg.lineColor()) || 'rgba(111, 224, 194, 0.45)',
       borderDash: [3, 3],
       borderWidth: 1,
       pointRadius: 0,
@@ -563,6 +631,7 @@ function renderBodyChart(daily, inbody, metricKey) {
           grid: { color: '#252D3F', lineWidth: 0.5 },
           ticks: { font: { size: 9 }, color: '#7E8AA6', callback: v => v.toFixed(1) + cfg.unit },
           suggestedMin: targetVal != null ? targetVal - 0.5 : undefined,
+          suggestedMax: targetVal != null ? targetVal + 0.5 : undefined,
         },
       },
     },
@@ -930,39 +999,45 @@ function renderWeekWeek(weekCompare) {
 function renderInsights(insights) {
   const kcalAvg    = insights?.kcal_avg_7d != null ? Number(insights.kcal_avg_7d) : null;
   const proteinAvg = insights?.protein_avg_7d != null ? Number(insights.protein_avg_7d) : null;
-  const weekRate   = insights?.bf_rate_per_week != null ? Number(insights.bf_rate_per_week) : null;
-  const forecast   = insights?.forecast_bf != null ? Number(insights.forecast_bf) : null;
-  const targetBf   = insights?.target_bf != null ? Number(insights.target_bf) : CONFIG.target.bf;
+  const weekRate   = insights?.rate_per_week != null ? Number(insights.rate_per_week) : null;
+  const forecast   = insights?.forecast_value != null ? Number(insights.forecast_value) : null;
+  const goalValue  = insights?.goal_value != null ? Number(insights.goal_value) : CONFIG.target.goalValue;
+
+  const metric = CONFIG.target.metric || 'weight_kg';
+  const unit   = CONFIG.target.unit || 'kg';
+  const rateUnit = metric === 'bf_pct' ? '%p' : 'kg';
+  const metricLabel = metric === 'bf_pct' ? '체지방률' : metric === 'skeletal_kg' ? '골격근량' : '체중';
+  // 방향: up이면 늘어나는 게 good (벌크), down이면 줄어드는 게 good (컷)
+  const dirUp = CONFIG.target.phase === 'lean_bulk' || metric === 'skeletal_kg';
 
   // pace text
   let paceText = '—';
   if (weekRate != null) {
-    paceText = `${weekRate >= 0 ? '+' : ''}${weekRate.toFixed(2)}%p / 주`;
+    paceText = `${weekRate >= 0 ? '+' : ''}${weekRate.toFixed(2)}${rateUnit} / 주`;
   }
 
   // Hero: 목표일 기준 예측 (big)
   const labelEl = $('forecastLabel');
   if (labelEl && CONFIG.target.date) {
-    labelEl.textContent = `${fmtMonthDay(CONFIG.target.date)} 예측 체지방률`;
+    labelEl.textContent = `${fmtMonthDay(CONFIG.target.date)} 예측 ${metricLabel}`;
   }
   const bigEl  = $('forecastBig');
   const metaEl = $('forecastMeta');
   if (forecast != null) {
-    let forecastCls = '';
-    if (forecast <= targetBf) forecastCls = 'good';
-    else if (forecast - targetBf <= 0.5) forecastCls = '';
-    else forecastCls = 'warn';
+    // 방향 고려한 목표 대비 격차: 양수면 목표에 못 미침
+    const gap = dirUp ? (goalValue - forecast) : (forecast - goalValue);
+    const tol = metric === 'bf_pct' ? 0.5 : 1.0;
+    const forecastCls = gap <= 0 ? 'good' : (gap <= tol ? '' : 'warn');
 
-    animateNumber(bigEl, forecast, { decimals: 1, suffix: '%' });
+    animateNumber(bigEl, forecast, { decimals: 1, suffix: unit });
     bigEl.className = 'insight-hero-value ' + forecastCls;
 
-    const diff = forecast - targetBf;
-    if (diff <= 0) {
+    if (gap <= 0) {
       metaEl.innerHTML = `<span class="good">목표 달성 페이스</span>`;
-    } else if (diff <= 0.5) {
-      metaEl.textContent = `목표 대비 +${diff.toFixed(1)}%p 격차`;
+    } else if (gap <= tol) {
+      metaEl.textContent = `목표까지 ${gap.toFixed(1)}${rateUnit} 격차`;
     } else {
-      metaEl.innerHTML = `<span class="warn">목표 대비 +${diff.toFixed(1)}%p 격차</span>`;
+      metaEl.innerHTML = `<span class="warn">목표까지 ${gap.toFixed(1)}${rateUnit} 격차</span>`;
     }
   } else {
     bigEl.textContent = '—';
@@ -970,10 +1045,12 @@ function renderInsights(insights) {
     metaEl.textContent = '데이터 부족';
   }
 
+  // 추세 색: 목표 방향으로 움직이면 good
+  const rateGood = weekRate != null && (dirUp ? weekRate > 0 : weekRate < 0);
   const items = [
     { label: '7일 평균 칼로리', value: kcalAvg != null ? `${Math.round(kcalAvg)} kcal` : '—', cls: '' },
-    { label: '7일 평균 단백질', value: proteinAvg != null ? `${Math.round(proteinAvg)} g` : '—', cls: (proteinAvg ?? 0) >= 150 ? 'good' : '' },
-    { label: '체지방률 추세',   value: paceText, cls: paceText.startsWith('-') ? 'good' : (paceText === '—' ? '' : 'warn') },
+    { label: '7일 평균 단백질', value: proteinAvg != null ? `${Math.round(proteinAvg)} g` : '—', cls: (proteinAvg ?? 0) >= (CONFIG.macros.rest.protein || 144) ? 'good' : '' },
+    { label: `${metricLabel} 추세`, value: paceText, cls: paceText === '—' ? '' : (rateGood ? 'good' : 'warn') },
   ];
 
   $('insights').innerHTML = items.map(i => `
@@ -984,6 +1061,121 @@ function renderInsights(insights) {
   `).join('');
 }
 
+// ───────── 리프팅 (1RM) ─────────
+let liftChart = null;
+const LIFT_COLORS = ['#A8D8F0', '#6FE0C2', '#B8B5F0', '#E8C9A0', '#E89BB0', '#9FE8A8'];
+
+function renderLifts(cards, trend) {
+  const grid = $('liftGrid');
+  const empty = $('liftEmpty');
+  const sub = $('liftSub');
+  if (!grid) return;
+
+  if (!cards.length) {
+    grid.innerHTML = '';
+    $('liftChartHead').hidden = true;
+    $('liftChartWrap').hidden = true;
+    empty.hidden = false;
+    sub.textContent = '기록 없음';
+    return;
+  }
+  empty.hidden = true;
+
+  const totalSessions = cards.reduce((s, c) => s + Number(c.sessions || 0), 0);
+  sub.textContent = `${totalSessions}세션 기록`;
+
+  // 카테고리 카드
+  grid.innerHTML = cards.map(c => {
+    const gain = c.avg_gain_pct != null ? Number(c.avg_gain_pct) : null;
+    const gainTxt = gain == null ? '—' :
+      `${gain >= 0 ? '+' : ''}${gain.toFixed(1)}%`;
+    const gainCls = gain == null ? '' : gain > 0 ? 'good' : gain < 0 ? 'warn' : '';
+    const lag = c.is_lagging ? '<span class="lift-lag">지연</span>' : '';
+    const days = c.days_since != null ? `${c.days_since}일 전` : '—';
+    return `
+      <div class="lift-card" data-cat="${c.category}">
+        <div class="lift-card-head">
+          <span class="lift-cat">${c.category}</span>${lag}
+        </div>
+        <span class="lift-gain ${gainCls}">${gainTxt}</span>
+        <span class="lift-meta">${c.exercise_count}종목 · ${days}</span>
+      </div>`;
+  }).join('');
+
+  // 클릭 → 해당 카테고리 종목별 1RM 추이
+  const selectCat = (cat) => {
+    grid.querySelectorAll('.lift-card').forEach(el =>
+      el.classList.toggle('selected', el.dataset.cat === cat));
+    renderLiftChart(trend, cat);
+  };
+  grid.querySelectorAll('.lift-card').forEach(el => {
+    el.onclick = () => selectCat(el.dataset.cat);
+  });
+
+  // 기본 선택: 첫 카테고리
+  selectCat(cards[0].category);
+}
+
+function renderLiftChart(trend, category) {
+  const rows = trend.filter(t => t.category === category && t.best_1rm != null);
+  const head = $('liftChartHead');
+  const wrap = $('liftChartWrap');
+  if (!rows.length) { head.hidden = true; wrap.hidden = true; return; }
+  head.hidden = false;
+  wrap.hidden = false;
+  $('liftChartTitle').textContent = `${category} 1RM 추이`;
+
+  // 종목별 시리즈 구성 (X축: 해당 카테고리의 훈련일 목록)
+  const dates = [...new Set(rows.map(r => r.date))].sort();
+  const exercises = [...new Set(rows.map(r => r.exercise))];
+  const byExDate = {};
+  rows.forEach(r => { byExDate[`${r.exercise}|${r.date}`] = Number(r.best_1rm); });
+
+  const datasets = exercises.map((ex, i) => ({
+    label: ex,
+    data: dates.map(d => byExDate[`${ex}|${d}`] ?? null),
+    borderColor: LIFT_COLORS[i % LIFT_COLORS.length],
+    backgroundColor: 'transparent',
+    borderWidth: 1.8,
+    tension: 0.25,
+    pointRadius: 3,
+    pointBackgroundColor: LIFT_COLORS[i % LIFT_COLORS.length],
+    pointBorderColor: '#0A0E16',
+    pointBorderWidth: 1.5,
+    spanGaps: true,
+  }));
+
+  const ctx = $('liftChart').getContext('2d');
+  if (liftChart) liftChart.destroy();
+  liftChart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: dates.map(d => d.slice(5)), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          display: true, position: 'bottom',
+          labels: { font: { size: 10 }, color: '#7E8AA6', boxWidth: 8, boxHeight: 8, usePointStyle: true },
+        },
+        tooltip: {
+          backgroundColor: '#1B2230', borderColor: '#252D3F', borderWidth: 1,
+          titleFont: { size: 10 }, bodyFont: { size: 11 }, padding: 10,
+          callbacks: {
+            label: (c) => c.parsed.y == null ? null : `${c.dataset.label}: ${c.parsed.y.toFixed(1)}kg`,
+          },
+        },
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#4A536B', maxTicksLimit: 8 } },
+        y: { grid: { color: '#252D3F', lineWidth: 0.5 },
+             ticks: { font: { size: 9 }, color: '#7E8AA6', callback: v => v + 'kg' } },
+      },
+    },
+  });
+}
+
 // ───────── Init ─────────
 async function render() {
   const today = toYMD(nowKST());
@@ -992,7 +1184,7 @@ async function render() {
     sb(`meals?date=eq.${today}&select=meal_type`),  // meal-strip dots only
   ]);
 
-  renderHero(data.hero, data.lossPlan);
+  renderHero(data.hero, data.goalPlan);
   renderHeatmap(data.grid, data.workouts, data.workoutStats);
   renderComposition(data.daily, data.inbody, data.bodyDelta);
   renderTodayMacros(data.daily, todayMeals);
@@ -1000,6 +1192,7 @@ async function render() {
   renderSober(data.sober, data.daily);
   renderWeekWeek(data.weekCompare);
   renderInsights(data.insights);
+  renderLifts(data.liftCards, data.liftTrend);
 }
 
 function resetAnimations() {

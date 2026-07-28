@@ -36,7 +36,10 @@
       <div class="hero-divider"></div>
 
       <div class="hero-section">
-        <span class="hero-eyebrow">체지방률 진행</span>
+        <div class="hero-eyebrow-row">
+          <span class="hero-eyebrow" id="metricEyebrow">진행</span>
+          <span class="guard-badge" id="guardBadge" hidden>—</span>
+        </div>
         <div class="progress-row">
           <span class="progress-current" id="currentBf">—</span>
           <span class="progress-target" id="targetBfLabel">—</span>
@@ -109,6 +112,25 @@
       </div>
     </section>
 
+    <!-- ───────── 3.5 리프팅 (1RM) ───────── -->
+    <section class="card" id="liftSection">
+      <div class="card-head">
+        <h2>리프팅</h2>
+        <span class="card-sub" id="liftSub">—</span>
+      </div>
+      <div class="lift-grid" id="liftGrid"></div>
+      <div class="chart-sub-head" id="liftChartHead" hidden>
+        <span class="chart-sub-title" id="liftChartTitle">—</span>
+        <span class="chart-sub-meta" id="liftChartMeta">추정 1RM</span>
+      </div>
+      <div class="chart-wrap" id="liftChartWrap" hidden>
+        <canvas id="liftChart"></canvas>
+      </div>
+      <div class="lift-empty" id="liftEmpty" hidden>
+        세트 기록이 쌓이면 부위별 1RM 추이가 표시됩니다
+      </div>
+    </section>
+
     <!-- ───────── 4. 오늘의 매크로 링 ───────── -->
     <section class="card">
       <div class="card-head">
@@ -177,7 +199,7 @@
     </section>
 
     <footer class="footer">
-      <span>© 2026 ako · Cut Phase</span>
+      <span id="footerPhase">© 2026 ako</span>
     </footer>
   </main>
 
