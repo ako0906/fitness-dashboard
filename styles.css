@@ -1035,3 +1035,167 @@ button { font: inherit; cursor: pointer; }
   text-align: center;
   padding: 22px 0 10px;
 }
+
+/* ═══════════ 코치 노트 (알림형) ═══════════ */
+.coach-note {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 14px 0 4px;
+  padding: 13px 14px 13px 16px;
+  border-radius: var(--r-lg, 16px);
+  background: linear-gradient(135deg, rgba(27, 34, 48, 0.92), rgba(20, 26, 38, 0.92));
+  border: 1px solid rgba(168, 216, 240, 0.14);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  transition: max-height 0.4s var(--ease), opacity 0.35s var(--ease),
+              margin 0.4s var(--ease), padding 0.4s var(--ease);
+}
+.coach-note.dismissing { opacity: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
+.coach-accent {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--ice), var(--mint));
+}
+.coach-note.warn   .coach-accent { background: linear-gradient(180deg, var(--rose), #E8C9A0); }
+.coach-note.review .coach-accent { background: linear-gradient(180deg, var(--lavender), var(--ice)); }
+.coach-avatar {
+  position: relative;
+  width: 30px; height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgba(168, 216, 240, 0.28), rgba(111, 224, 194, 0.10));
+  border: 1px solid rgba(168, 216, 240, 0.3);
+  display: grid;
+  place-items: center;
+  margin-top: 1px;
+}
+.coach-pulse {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 8px rgba(111, 224, 194, 0.8);
+  animation: coachPulse 2.2s ease-in-out infinite;
+}
+.coach-note.warn .coach-pulse { background: var(--rose); box-shadow: 0 0 8px rgba(232, 155, 176, 0.8); }
+.coach-note.review .coach-pulse { background: var(--lavender); box-shadow: 0 0 8px rgba(184, 181, 240, 0.8); }
+@keyframes coachPulse {
+  0%, 100% { transform: scale(1);   opacity: 1; }
+  50%      { transform: scale(0.72); opacity: 0.6; }
+}
+.coach-body { flex: 1; min-width: 0; }
+.coach-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.coach-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--ice);
+}
+.coach-note.warn .coach-title { color: var(--rose); }
+.coach-date {
+  font-size: 9px;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+}
+.coach-msg {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+  margin: 0;
+  word-break: keep-all;
+}
+.coach-close {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: var(--text-3);
+  padding: 3px;
+  margin: -2px -4px 0 0;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color var(--t-base) var(--ease);
+}
+.coach-close:active { color: var(--text); }
+
+/* ═══════════ 칩 네비 ═══════════ */
+.nav-sentinel { height: 1px; }
+.chip-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  margin: 10px 0 4px;
+}
+.chip {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: rgba(27, 34, 48, 0.72);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color var(--t-base) var(--ease),
+              background var(--t-base) var(--ease),
+              border-color var(--t-base) var(--ease),
+              transform 0.18s var(--ease);
+}
+.chip:active { transform: scale(0.94); }
+.chip.active {
+  color: #0A0E16;
+  background: var(--ice);
+  border-color: var(--ice);
+  font-weight: 600;
+}
+.chip-nav.stuck .chip:not(.active) {
+  background: rgba(16, 21, 32, 0.86);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+/* ═══════════ 그룹 헤더 ═══════════ */
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 26px 2px 2px;
+  scroll-margin-top: 62px;
+}
+.group-head span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+.group-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
+}
+
+/* ═══════════ 스크롤 리빌 ═══════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.55s var(--ease), transform 0.55s var(--ease);
+}
+.reveal.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal { opacity: 1; transform: none; }
+  .coach-pulse { animation: none; }
+}

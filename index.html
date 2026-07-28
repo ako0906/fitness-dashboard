@@ -4,7 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#0A0E16" />
-  <title>SH / Cut Phase</title>
+  <title>ako Fitness</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Fitness" />
+  <link rel="apple-touch-icon" href="icon-180.png" />
 
   <!-- Pretendard for everything Korean+body, Geist Mono only for tiny meta -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" />
@@ -60,24 +67,48 @@
       <div class="updated" id="lastUpdated">—</div>
     </header>
 
-    <!-- ───────── 2. 운동 잔디 ───────── -->
+    <!-- ───────── 코치 노트 ───────── -->
+    <aside class="coach-note" id="coachNote" hidden>
+      <div class="coach-accent" aria-hidden="true"></div>
+      <div class="coach-avatar" aria-hidden="true"><span class="coach-pulse"></span></div>
+      <div class="coach-body">
+        <div class="coach-head">
+          <span class="coach-title">코치 노트</span>
+          <span class="coach-date" id="coachDate">—</span>
+        </div>
+        <p class="coach-msg" id="coachMsg">—</p>
+      </div>
+      <button class="coach-close" id="coachClose" aria-label="오늘 하루 닫기">
+        <svg viewBox="0 0 12 12" width="11" height="11" fill="none" aria-hidden="true">
+          <path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </aside>
+
+    <!-- ───────── 칩 네비 ───────── -->
+    <div class="nav-sentinel" id="navSentinel" aria-hidden="true"></div>
+    <nav class="chip-nav" id="chipNav" aria-label="섹션 이동">
+      <button class="chip active" data-target="top">오늘</button>
+      <button class="chip" data-target="g-body">바디</button>
+      <button class="chip" data-target="g-training">트레이닝</button>
+      <button class="chip" data-target="g-review">리뷰</button>
+    </nav>
+
+<!-- ───────── 4. 오늘의 매크로 링 ───────── -->
     <section class="card">
       <div class="card-head">
-        <h2>운동 잔디</h2>
-        <span class="card-sub" id="gridSubtitle">최근 1년</span>
+        <h2>오늘</h2>
+        <span class="card-sub" id="todayType">—</span>
       </div>
-      <div class="heatmap-wrap">
-        <div class="heatmap-months" id="heatmapMonths"></div>
-        <div class="heatmap" id="heatmap"></div>
-      </div>
-      <div class="legend">
-        <span class="dot dot-active"></span><span class="legend-label">운동한 날</span>
-        <span class="dot dot-broken"></span><span class="legend-label">못 한 날</span>
-        <span class="dot dot-today"></span><span class="legend-label">오늘</span>
+      <div class="meal-strip" id="mealStrip"></div>
+      <div class="macro-grid" id="macroGrid">
+        <!-- rings injected by JS -->
       </div>
     </section>
 
-    <!-- ───────── 3. 체성분 ───────── -->
+    
+    <div class="group-head" id="g-body"><span>바디</span></div>
+<!-- ───────── 3. 체성분 ───────── -->
     <section class="card">
       <div class="card-head">
         <h2>체성분</h2>
@@ -112,6 +143,25 @@
       </div>
     </section>
 
+    
+    <div class="group-head" id="g-training"><span>트레이닝</span></div>
+<!-- ───────── 2. 운동 잔디 ───────── -->
+    <section class="card">
+      <div class="card-head">
+        <h2>운동 잔디</h2>
+        <span class="card-sub" id="gridSubtitle">최근 1년</span>
+      </div>
+      <div class="heatmap-wrap">
+        <div class="heatmap-months" id="heatmapMonths"></div>
+        <div class="heatmap" id="heatmap"></div>
+      </div>
+      <div class="legend">
+        <span class="dot dot-active"></span><span class="legend-label">운동한 날</span>
+        <span class="dot dot-broken"></span><span class="legend-label">못 한 날</span>
+        <span class="dot dot-today"></span><span class="legend-label">오늘</span>
+      </div>
+    </section>
+
     <!-- ───────── 3.5 리프팅 (1RM) ───────── -->
     <section class="card" id="liftSection">
       <div class="card-head">
@@ -131,19 +181,9 @@
       </div>
     </section>
 
-    <!-- ───────── 4. 오늘의 매크로 링 ───────── -->
-    <section class="card">
-      <div class="card-head">
-        <h2>오늘</h2>
-        <span class="card-sub" id="todayType">—</span>
-      </div>
-      <div class="meal-strip" id="mealStrip"></div>
-      <div class="macro-grid" id="macroGrid">
-        <!-- rings injected by JS -->
-      </div>
-    </section>
-
-    <!-- ───────── 5. 주간 칼로리 / 단백질 바 ───────── -->
+    
+    <div class="group-head" id="g-review"><span>리뷰</span></div>
+<!-- ───────── 5. 주간 칼로리 / 단백질 바 ───────── -->
     <section class="card">
       <div class="card-head">
         <h2>이번 주</h2>

@@ -53,7 +53,7 @@ async function loadAll() {
   const [
     dailyRaw, workoutsRaw, inbodyRaw, gridRaw,
     hero, bodyDelta, workoutStats, sober, weekCompare, insights, goalPlan,
-    liftCards, liftTrend,
+    liftCards, liftTrend, coachNotes, phasesRaw,
   ] = await Promise.all([
     sb('v_daily?order=date.desc&limit=2000'),
     sb('workouts?order=date.desc&limit=2000'),
@@ -68,6 +68,8 @@ async function loadAll() {
     sb('v_goal_plan'),
     sb('v_lift_category_card'),
     sb('v_lift_trend?order=date.asc&limit=3000'),
+    sb('v_coach_note'),
+    sb('phases?select=phase,label,start_date,end_date&order=start_date.asc'),
   ]);
 
   const daily = dailyRaw.map(d => ({
@@ -129,6 +131,8 @@ async function loadAll() {
     goalPlan:     goalPlan[0]     || null,
     liftCards:    liftCards       || [],
     liftTrend:    liftTrend       || [],
+    coachNotes:   coachNotes      || [],
+    phases:       phasesRaw       || [],
   };
 }
 
@@ -481,6 +485,65 @@ function renderMetricCard(cardId, daily, delta, key, unit, opts = {}) {
 }
 
 // 지표별 차트 설정
+// ───────── 페이즈 음영 플러그인 ─────────
+let PHASES_CACHE = [];
+const phaseBandsPlugin = {
+  id: 'phaseBands',
+  beforeDatasetsDraw(chart) {
+    const bands = chart.options.plugins?.phaseBands?.bands || [];
+    if (!bands.length) return;
+    const { ctx, chartArea: { top, bottom, left, right }, scales: { x } } = chart;
+    const colors = {
+      cut:       'rgba(111, 224, 194, 0.045)',
+      lean_bulk: 'rgba(168, 216, 240, 0.055)',
+      maintain:  'rgba(126, 138, 166, 0.04)',
+    };
+    const half = x.getPixelForValue(1) - x.getPixelForValue(0) || 0;
+    ctx.save();
+    bands.forEach(b => {
+      const x0 = Math.max(left,  x.getPixelForValue(b.from) - half / 2);
+      const x1 = Math.min(right, x.getPixelForValue(b.to)   + half / 2);
+      ctx.fillStyle = colors[b.phase] || colors.maintain;
+      ctx.fillRect(x0, top, x1 - x0, bottom - top);
+      // 페이즈 경계선 (차트 범위 중간에서 시작하는 경우)
+      if (b.boundary) {
+        const bx = x.getPixelForValue(b.from) - half / 2;
+        ctx.strokeStyle = 'rgba(168, 216, 240, 0.4)';
+        ctx.setLineDash([2, 3]);
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(bx, top);
+        ctx.lineTo(bx, bottom);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(168, 216, 240, 0.75)';
+        ctx.font = "9px 'Pretendard Variable', sans-serif";
+        ctx.fillText(b.label, bx + 4, top + 10);
+      }
+    });
+    ctx.restore();
+  },
+};
+
+function computePhaseBands(filtered, phases) {
+  if (!phases?.length || !filtered.length) return [];
+  const first = filtered[0].date.slice(0, 10);
+  const bands = [];
+  phases.forEach(p => {
+    const s = p.start_date, e = p.end_date || '9999-12-31';
+    let from = -1, to = -1;
+    filtered.forEach((d, i) => {
+      const dd = d.date.slice(0, 10);
+      if (dd >= s && dd <= e) { if (from < 0) from = i; to = i; }
+    });
+    if (from >= 0) bands.push({
+      from, to, phase: p.phase, label: p.label,
+      boundary: s > first,
+    });
+  });
+  return bands;
+}
+
 const METRIC_CONFIG = {
   // 기준선: 이 지표가 목표(goal_metric)면 목표선, 감시(guard_metric)면 상한선
   bf: {
@@ -600,11 +663,13 @@ function renderBodyChart(daily, inbody, metricKey) {
   bfChart = new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
+    plugins: [phaseBandsPlugin],
     options: {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       plugins: {
+        phaseBands: { bands: computePhaseBands(filtered, PHASES_CACHE) },
         legend: { display: false },
         tooltip: {
           backgroundColor: '#1B2230',
@@ -1061,6 +1126,101 @@ function renderInsights(insights) {
   `).join('');
 }
 
+// ───────── 코치 노트 ─────────
+function renderCoachNote(notes) {
+  const el = $('coachNote');
+  if (!el) return;
+  const today = toYMD(nowKST());
+
+  // 오늘 이미 닫았으면 표시 안 함
+  if (localStorage.getItem('coachDismissed') === today) { el.hidden = true; return; }
+  if (!notes || !notes.length) { el.hidden = true; return; }
+
+  // 최우선 kind가 톤을 결정 (review > warn > info > good)
+  const top = notes[0];
+  el.classList.remove('warn', 'info', 'good', 'review');
+  el.classList.add(top.kind || 'good');
+
+  const d = nowKST();
+  $('coachDate').textContent =
+    `${d.getMonth() + 1}/${d.getDate()} ${['일','월','화','수','목','금','토'][d.getDay()]}`;
+
+  // 최대 2줄
+  $('coachMsg').innerHTML = notes.slice(0, 2).map(n => n.msg).join('<br>');
+  el.hidden = false;
+
+  const closeBtn = $('coachClose');
+  closeBtn.onclick = () => {
+    localStorage.setItem('coachDismissed', today);
+    el.style.maxHeight = el.scrollHeight + 'px';
+    requestAnimationFrame(() => {
+      el.classList.add('dismissing');
+      el.style.maxHeight = '0px';
+    });
+    setTimeout(() => { el.hidden = true; el.classList.remove('dismissing'); el.style.maxHeight = ''; }, 420);
+  };
+}
+
+// ───────── 칩 네비 (스크롤 스파이 + 점프) ─────────
+let navInited = false;
+function initChipNav() {
+  if (navInited) return;
+  navInited = true;
+  const nav = $('chipNav');
+  if (!nav) return;
+  const chips = [...nav.querySelectorAll('.chip')];
+
+  // 점프
+  chips.forEach(chip => {
+    chip.addEventListener('click', () => {
+      const t = chip.dataset.target;
+      if (t === 'top') window.scrollTo({ top: 0, behavior: 'smooth' });
+      else $(t)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+
+  // 스크롤 스파이: 그룹 헤더 위치 기준으로 활성 칩 결정
+  const marks = ['g-body', 'g-training', 'g-review']
+    .map(id => ({ id, el: $(id) })).filter(m => m.el);
+  const setActive = (id) => chips.forEach(c => c.classList.toggle('active', c.dataset.target === id));
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = window.scrollY + 90; // 스티키 네비 높이 보정
+      let cur = 'top';
+      for (const m of marks) if (m.el.offsetTop <= y) cur = m.id;
+      setActive(cur);
+      ticking = false;
+    });
+  }, { passive: true });
+
+  // 스티키 상태 감지 (배경 블러 강화용)
+  const sentinel = $('navSentinel');
+  if (sentinel && 'IntersectionObserver' in window) {
+    new IntersectionObserver(([e]) =>
+      nav.classList.toggle('stuck', !e.isIntersecting)
+    ).observe(sentinel);
+  }
+}
+
+// ───────── 스크롤 리빌 ─────────
+let revealInited = false;
+function initReveal() {
+  if (revealInited) return;
+  revealInited = true;
+  if (!('IntersectionObserver' in window)) return;
+  const targets = document.querySelectorAll('.card, .group-head, .coach-note');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.06, rootMargin: '0px 0px -4% 0px' });
+  targets.forEach(t => { t.classList.add('reveal'); io.observe(t); });
+}
+
 // ───────── 리프팅 (1RM) ─────────
 let liftChart = null;
 const LIFT_COLORS = ['#A8D8F0', '#6FE0C2', '#B8B5F0', '#E8C9A0', '#E89BB0', '#9FE8A8'];
@@ -1184,6 +1344,8 @@ async function render() {
     sb(`meals?date=eq.${today}&select=meal_type`),  // meal-strip dots only
   ]);
 
+  PHASES_CACHE = data.phases;
+  renderCoachNote(data.coachNotes);
   renderHero(data.hero, data.goalPlan);
   renderHeatmap(data.grid, data.workouts, data.workoutStats);
   renderComposition(data.daily, data.inbody, data.bodyDelta);
@@ -1193,6 +1355,8 @@ async function render() {
   renderWeekWeek(data.weekCompare);
   renderInsights(data.insights);
   renderLifts(data.liftCards, data.liftTrend);
+  initChipNav();
+  initReveal();
 }
 
 function resetAnimations() {
