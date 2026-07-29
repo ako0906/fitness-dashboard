@@ -62,6 +62,9 @@ body {
 }
 button { font: inherit; cursor: pointer; }
 
+/* hidden 속성은 어떤 display 선언보다 우선 (display:flex/grid 충돌 방지) */
+[hidden] { display: none !important; }
+
 /* ─── App layout ─── */
 .app {
   max-width: 480px;
@@ -98,24 +101,6 @@ button { font: inherit; cursor: pointer; }
 }
 .hero > * { position: relative; z-index: 1; }
 
-.refresh {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  z-index: 2;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 50%;
-  background: var(--surface-2);
-  color: var(--text-2);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform var(--t-base) var(--ease), color var(--t-fast), background var(--t-fast);
-}
-.refresh:hover { color: var(--text); background: var(--border); }
-.refresh:active { transform: rotate(180deg); }
 
 .hero-section {
   display: flex;
@@ -1075,7 +1060,6 @@ button { font: inherit; cursor: pointer; }
   transition: max-height 0.4s var(--ease), opacity 0.35s var(--ease),
               margin 0.4s var(--ease), padding 0.4s var(--ease);
 }
-.coach-note[hidden] { display: none; }
 .coach-note.dismissing { opacity: 0; margin-top: 0; margin-bottom: 0; padding-top: 0; padding-bottom: 0; }
 .coach-accent {
   position: absolute;
@@ -1257,7 +1241,12 @@ body::before {
   -webkit-backdrop-filter: blur(12px);
 }
 .ptr.ready { border-color: rgba(168, 216, 240, 0.55); }
-.ptr-ring { display: block; overflow: visible; }
+.ptr-spin {
+  display: block;
+  width: 32px; height: 32px;
+  transform-origin: 50% 50%;
+}
+.ptr-ring { display: block; overflow: visible; transform-origin: 50% 50%; }
 .ptr-track { stroke: rgba(126, 138, 166, 0.28); }
 .ptr-arc {
   stroke: var(--text-2);
@@ -1265,7 +1254,7 @@ body::before {
 }
 .ptr.ready .ptr-arc { stroke: var(--ice); }
 /* 로딩: 감긴 링이 짧은 호로 좁혀지며 계속 회전 */
-.ptr.loading .ptr-ring { animation: ptrSpin 0.7s linear infinite; }
+.ptr.loading .ptr-spin { animation: ptrSpin 0.7s linear infinite; }
 .ptr.loading .ptr-arc {
   stroke: var(--ice);
   stroke-dashoffset: 56 !important;
@@ -1274,7 +1263,7 @@ body::before {
 @keyframes ptrSpin { to { transform: rotate(360deg); } }
 
 /* ═══════════ 터치 피드백 ═══════════ */
-.card, .lift-card, .metric-card, .chip, .coach-close, .refresh {
+.card, .lift-card, .metric-card, .chip, .coach-close {
   -webkit-tap-highlight-color: transparent;
 }
 .metric-card:active, .lift-card:active {

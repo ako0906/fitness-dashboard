@@ -237,6 +237,7 @@ function renderHero(hero, goalPlan) {
                        hero.guard_metric === 'weight_kg' ? '체중' : '골격근량';
         const gUnit  = hero.guard_metric === 'bf_pct' ? '%' : 'kg';
         const gVal   = Number(hero.guard_value);
+        const src    = hero.guard_source === 'inbody' ? ' · InBody' : '';
         badge.hidden = false;
         badge.classList.remove('ok', 'warning', 'breached');
         if (hero.guard_breached) {
@@ -247,7 +248,7 @@ function renderHero(hero, goalPlan) {
           badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit} · 상한 근접`;
         } else {
           badge.classList.add('ok');
-          badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit}`;
+          badge.textContent = `${gLabel} ${gVal.toFixed(1)}${gUnit}${src}`;
         }
       } else {
         badge.hidden = true;
@@ -1370,12 +1371,16 @@ function initPullToRefresh() {
       ind.classList.add('loading');
       ind.style.transition = 'transform 0.28s var(--ease)';
       ind.style.transform = `translateY(${TRIGGER}px)`;
-      try { await render({ replay: true }); } finally {
-        setTimeout(() => {
-          ind.classList.remove('loading', 'ready');
-          setPull(0, true);
-          busy = false;
-        }, 420);
+      try {
+        // 최소 0.8초는 돌게 해서 회전이 눈에 보이도록
+        await Promise.all([
+          render({ replay: true }),
+          new Promise(r => setTimeout(r, 800)),
+        ]);
+      } finally {
+        ind.classList.remove('loading', 'ready');
+        setPull(0, true);
+        setTimeout(() => { busy = false; }, 320);
       }
     } else {
       setPull(0, true);
