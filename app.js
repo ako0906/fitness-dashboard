@@ -380,7 +380,7 @@ function renderHeatmap(grid, workouts, stats) {
         if (g && g.isWorkout) {
           cell.classList.add(typeClassMap[g.primaryType] || 'rest');
           const dayWorkouts = workoutsByDate[ymd] || [];
-          cell.addEventListener('click', () => showWorkoutModal(dayWorkouts, ymd));
+          cell.addEventListener('click', (ev) => { ev.stopPropagation(); showWorkoutPopover(dayWorkouts, ymd, cell); });
         } else {
           cell.classList.add('empty');
         }
@@ -421,36 +421,73 @@ function renderHeatmap(grid, workouts, stats) {
   }
 }
 
-function showWorkoutModal(dayWorkouts, date) {
-  $('modalDate').textContent = date;
+function showWorkoutPopover(dayWorkouts, date, anchor) {
+  const pop = $('modal');
+  const card = pop.querySelector('.modal-card');
+
+  const [, m, d] = date.match(/(\d{4})-(\d{2})-(\d{2})/) || [];
+  $('modalDate').textContent = m ? `${parseInt(m)}월 ${parseInt(d)}일` : date;
+
   if (!dayWorkouts || !dayWorkouts.length) {
     $('modalBody').innerHTML = '<div class="modal-row"><span>기록 없음</span></div>';
-    $('modal').hidden = false;
-    return;
+  } else {
+    $('modalBody').innerHTML = dayWorkouts.map((rec, idx) => {
+      const rows = [
+        ['종류', rec.type || '—'],
+        ['시간', rec.duration ? `${rec.duration}분` : '—'],
+        ['강도', rec.intensity || '—'],
+        ['애플워치', rec.appleKcal ? `${rec.appleKcal} kcal` : '—'],
+        ['메모', rec.note || '—'],
+      ].filter(([, v]) => v !== '—' || true);
+      const header = dayWorkouts.length > 1
+        ? `<div class="modal-session">세션 ${idx + 1}${rec.startTime ? ' · ' + rec.startTime.slice(0,5) : ''}</div>`
+        : '';
+      return header + rows.map(([k, v]) =>
+        `<div class="modal-row"><span>${k}</span><span>${v}</span></div>`
+      ).join('');
+    }).join('');
   }
-  // One block per workout (supports multiple sessions in a day)
-  $('modalBody').innerHTML = dayWorkouts.map((rec, idx) => {
-    const rows = [
-      ['종류', rec.type || '—'],
-      ['시간', rec.duration ? `${rec.duration}분` : '—'],
-      ['강도', rec.intensity || '—'],
-      ['애플워치', rec.appleKcal ? `${rec.appleKcal} kcal` : '—'],
-      ['메모', rec.note || '—'],
-    ];
-    const header = dayWorkouts.length > 1
-      ? `<div class="modal-session">세션 ${idx + 1}${rec.startTime ? ' · ' + rec.startTime.slice(0,5) : ''}</div>`
-      : '';
-    return header + rows.map(([k, v]) =>
-      `<div class="modal-row"><span>${k}</span><span>${v}</span></div>`
-    ).join('');
-  }).join('');
-  $('modal').hidden = false;
+
+  // 먼저 보이게 해서 크기를 잰 뒤 위치 계산
+  pop.hidden = false;
+  card.style.visibility = 'hidden';
+  card.classList.remove('in', 'below');
+  requestAnimationFrame(() => {
+    const a = anchor.getBoundingClientRect();
+    const w = card.offsetWidth, h = card.offsetHeight;
+    const pad = 10;
+
+    // 기본: 셀 위쪽 중앙. 공간 부족하면 아래로
+    let top = a.top - h - 8;
+    let below = false;
+    if (top < pad + (window.visualViewport?.offsetTop || 0)) {
+      top = a.bottom + 8;
+      below = true;
+    }
+    let left = a.left + a.width / 2 - w / 2;
+    left = Math.max(pad, Math.min(left, window.innerWidth - w - pad));
+
+    card.style.left = `${left}px`;
+    card.style.top  = `${top}px`;
+    // 꼬리가 셀 중앙을 가리키게
+    const tail = a.left + a.width / 2 - left;
+    card.style.setProperty('--tail-x', `${Math.max(12, Math.min(tail, w - 12))}px`);
+    card.classList.toggle('below', below);
+    card.style.visibility = '';
+    requestAnimationFrame(() => card.classList.add('in'));
+  });
 }
 
-$('modalClose').addEventListener('click', () => $('modal').hidden = true);
-$('modal').addEventListener('click', e => {
-  if (e.target.id === 'modal') $('modal').hidden = true;
-});
+function hidePopover() {
+  const pop = $('modal');
+  const card = pop.querySelector('.modal-card');
+  card.classList.remove('in');
+  setTimeout(() => { pop.hidden = true; }, 160);
+}
+
+$('modalClose').addEventListener('click', hidePopover);
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal') hidePopover(); });
+document.addEventListener('scroll', () => { if (!$('modal').hidden) hidePopover(); }, { passive: true });
 
 // ───────── 3. Composition (cards + BF chart) ─────────
 let bfChart;
@@ -1263,6 +1300,7 @@ function initChipNav() {
 
 // ───────── 스크롤 리빌 ─────────
 let revealInited = false;
+let revealObserver = null;
 function initReveal() {
   if (revealInited) return;
   revealInited = true;
@@ -1271,16 +1309,16 @@ function initReveal() {
     targets.forEach(t => { t.classList.add('in'); flushPending(t); });
     return;
   }
-  const io = new IntersectionObserver((entries) => {
+  revealObserver = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (!e.isIntersecting) return;
       e.target.classList.add('in');
       // 카드가 보이면 그 안의 숫자·바·링 애니메이션 실행
       setTimeout(() => flushPending(e.target), 90);
-      io.unobserve(e.target);
+      revealObserver.unobserve(e.target);
     });
   }, { threshold: 0.06, rootMargin: '0px 0px -4% 0px' });
-  targets.forEach(t => { t.classList.add('reveal'); io.observe(t); });
+  targets.forEach(t => { t.classList.add('reveal'); revealObserver.observe(t); });
 }
 
 // ───────── 당겨서 새로고침 ─────────
@@ -1289,16 +1327,21 @@ function initPullToRefresh() {
   if (ptrInited) return;
   ptrInited = true;
   const ind = $('ptr');
-  if (!ind) return;
-  const MAX = 88, TRIGGER = 62;
+  const arc = $('ptrArc');
+  if (!ind || !arc) return;
+  const CIRC = 75.4;               // 2πr (r=12)
+  const MAX = 92, TRIGGER = 64;
   let startY = 0, pulling = false, dist = 0, busy = false;
 
-  const setPull = (d) => {
-    ind.style.transform = `translateY(${d}px)`;
-    ind.style.opacity = String(Math.min(1, d / 40));
-    const spin = ind.querySelector('.ptr-spin');
-    if (spin) spin.style.transform = `rotate(${d * 4}deg)`;
-    ind.classList.toggle('ready', d >= TRIGGER);
+  // 당긴 거리 → 링이 점점 감기고 함께 회전
+  const setPull = (d, animate = false) => {
+    const p = Math.min(1, d / TRIGGER);
+    ind.style.transition = animate ? '' : 'none';
+    arc.style.transition = animate ? 'stroke-dashoffset 0.3s var(--ease)' : 'none';
+    ind.style.transform = `translateY(${d}px) rotate(${d * 3}deg)`;
+    ind.style.opacity = String(Math.min(1, d / 32));
+    arc.style.strokeDashoffset = String(CIRC * (1 - p * 0.92));
+    ind.classList.toggle('ready', p >= 1);
   };
 
   document.addEventListener('touchstart', (e) => {
@@ -1310,30 +1353,31 @@ function initPullToRefresh() {
 
   document.addEventListener('touchmove', (e) => {
     if (!pulling || busy) return;
-    const d = e.touches[0].clientY - startY;
-    if (d <= 0 || window.scrollY > 0) { pulling = false; setPull(0); return; }
-    dist = Math.min(MAX, d * 0.5);   // 저항감
-    ind.style.transition = 'none';
+    const raw = e.touches[0].clientY - startY;
+    if (raw <= 0 || window.scrollY > 0) { pulling = false; setPull(0, true); return; }
+    // 끝으로 갈수록 뻑뻑해지는 저항감
+    dist = MAX * (1 - Math.exp(-raw / 130));
     setPull(dist);
   }, { passive: true });
 
   document.addEventListener('touchend', async () => {
     if (!pulling || busy) return;
     pulling = false;
-    ind.style.transition = '';
     if (dist >= TRIGGER) {
       busy = true;
+      // 감긴 링이 그대로 스피너로 이어짐 (끊김 없이)
       ind.classList.add('loading');
-      setPull(TRIGGER);
-      try { await render(); } finally {
+      ind.style.transition = 'transform 0.28s var(--ease)';
+      ind.style.transform = `translateY(${TRIGGER}px)`;
+      try { await render({ replay: true }); } finally {
         setTimeout(() => {
           ind.classList.remove('loading', 'ready');
-          setPull(0);
+          setPull(0, true);
           busy = false;
-        }, 320);
+        }, 420);
       }
     } else {
-      setPull(0);
+      setPull(0, true);
     }
   }, { passive: true });
 }
@@ -1474,7 +1518,8 @@ function renderLiftChart(trend, category) {
 }
 
 // ───────── Init ─────────
-async function render() {
+async function render(opts = {}) {
+  if (opts.replay) resetAnimations();
   const today = toYMD(nowKST());
   const [data, todayMeals] = await Promise.all([
     loadAll(),
@@ -1539,11 +1584,17 @@ function resetAnimations() {
     void el.offsetHeight;
     el.style.animation = '';
   });
-}
 
-$('refreshBtn').addEventListener('click', () => {
-  resetAnimations();
-  render();
-});
+  // 화면 밖 카드는 리빌 대기 상태로 되돌려서, 다시 스크롤하면 값이 살아나게
+  pendingByCard.clear();
+  if (revealObserver) {
+    document.querySelectorAll('.card, .group-head, .coach-note').forEach(el => {
+      if (!isOnScreen(el)) {
+        el.classList.remove('in');
+        revealObserver.observe(el);
+      }
+    });
+  }
+}
 
 render();

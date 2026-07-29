@@ -25,22 +25,18 @@
 </head>
 <body>
   <div class="ptr" id="ptr" aria-hidden="true">
-    <span class="ptr-spin">
-      <svg viewBox="0 0 16 16" width="15" height="15" fill="none">
-        <path d="M13.5 8a5.5 5.5 0 1 1-1.62-3.9M13.5 3v3h-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </span>
+    <svg class="ptr-ring" viewBox="0 0 32 32" width="32" height="32">
+      <circle class="ptr-track" cx="16" cy="16" r="12" fill="none" stroke-width="2.2" />
+      <circle class="ptr-arc" id="ptrArc" cx="16" cy="16" r="12" fill="none"
+              stroke-width="2.2" stroke-linecap="round"
+              stroke-dasharray="75.4" stroke-dashoffset="75.4"
+              transform="rotate(-90 16 16)" />
+    </svg>
   </div>
   <main class="app">
 
     <!-- ───────── 1. 히어로 ───────── -->
     <header class="hero" id="hero">
-      <button class="refresh" id="refreshBtn" aria-label="새로고침">
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
-          <path d="M13.5 8a5.5 5.5 0 1 1-1.62-3.9M13.5 3v3h-3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
-
       <div class="hero-section">
         <span class="hero-eyebrow">목표일까지</span>
         <span class="hero-display" id="dDay">—</span>

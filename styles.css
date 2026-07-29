@@ -866,58 +866,81 @@ button { font: inherit; cursor: pointer; }
 /* ============================================
    Modal
    ============================================ */
+/* ─── 잔디 팝오버 (블러 배경 없이 셀 옆에) ─── */
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(10, 14, 22, 0.7);
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
   z-index: 100;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: transparent;
 }
 .modal[hidden] { display: none; }
 .modal-card {
-  background: var(--surface);
-  border-radius: var(--r-lg) var(--r-lg) 0 0;
-  width: 100%;
-  max-width: 480px;
-  padding: 22px;
-  padding-bottom: calc(22px + env(safe-area-inset-bottom));
+  position: fixed;
+  width: max-content;
+  min-width: 168px;
+  max-width: min(260px, calc(100vw - 20px));
+  background: rgba(27, 34, 48, 0.97);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  max-height: 70vh;
-  overflow-y: auto;
-  box-shadow: var(--highlight);
-  animation: modal-slide 380ms var(--ease-out);
+  gap: 7px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  opacity: 0;
+  transform: translateY(5px) scale(0.96);
+  transform-origin: var(--tail-x, 50%) 100%;
+  transition: opacity 0.16s var(--ease), transform 0.2s var(--ease-out);
 }
-@keyframes modal-slide {
-  from { transform: translateY(48px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
+.modal-card.below { transform-origin: var(--tail-x, 50%) 0%; transform: translateY(-5px) scale(0.96); }
+.modal-card.in { opacity: 1; transform: translateY(0) scale(1); }
+/* 꼬리 */
+.modal-card::after {
+  content: '';
+  position: absolute;
+  left: var(--tail-x, 50%);
+  margin-left: -5px;
+  bottom: -5px;
+  width: 9px; height: 9px;
+  background: inherit;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+.modal-card.below::after {
+  bottom: auto;
+  top: -5px;
+  border: none;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
 }
 .modal-head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
+  color: var(--ice);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  gap: 12px;
 }
 .modal-head button {
   background: none;
   border: none;
-  color: var(--text-2);
-  font-size: 24px;
+  color: var(--text-3);
+  font-size: 17px;
   line-height: 1;
+  padding: 0 0 1px;
 }
 .modal-row {
   display: flex;
   justify-content: space-between;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  gap: 14px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(37, 45, 63, 0.6);
+  font-size: 11.5px;
 }
 .modal-row:last-child { border: none; }
 .modal-session {
