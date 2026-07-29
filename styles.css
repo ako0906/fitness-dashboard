@@ -1256,9 +1256,21 @@ body::before {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.ptr.ready { color: var(--ice); border-color: rgba(168, 216, 240, 0.5); }
-.ptr.loading .ptr-spin { animation: ptrSpin 0.75s linear infinite; }
-.ptr-spin { display: grid; place-items: center; }
+.ptr.ready { border-color: rgba(168, 216, 240, 0.55); }
+.ptr-ring { display: block; overflow: visible; }
+.ptr-track { stroke: rgba(126, 138, 166, 0.28); }
+.ptr-arc {
+  stroke: var(--text-2);
+  transition: stroke 0.2s var(--ease);
+}
+.ptr.ready .ptr-arc { stroke: var(--ice); }
+/* 로딩: 감긴 링이 짧은 호로 좁혀지며 계속 회전 */
+.ptr.loading .ptr-ring { animation: ptrSpin 0.7s linear infinite; }
+.ptr.loading .ptr-arc {
+  stroke: var(--ice);
+  stroke-dashoffset: 56 !important;
+  transition: stroke-dashoffset 0.25s var(--ease);
+}
 @keyframes ptrSpin { to { transform: rotate(360deg); } }
 
 /* ═══════════ 터치 피드백 ═══════════ */

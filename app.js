@@ -1366,6 +1366,7 @@ function initPullToRefresh() {
     if (dist >= TRIGGER) {
       busy = true;
       // 감긴 링이 그대로 스피너로 이어짐 (끊김 없이)
+      arc.style.transition = '';
       ind.classList.add('loading');
       ind.style.transition = 'transform 0.28s var(--ease)';
       ind.style.transform = `translateY(${TRIGGER}px)`;
