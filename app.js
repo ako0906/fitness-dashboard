@@ -1329,19 +1329,44 @@ function initPullToRefresh() {
   ptrInited = true;
   const ind = $('ptr');
   const arc = $('ptrArc');
-  if (!ind || !arc) return;
+  const spin = ind?.querySelector('.ptr-spin');
+  if (!ind || !arc || !spin) return;
   const CIRC = 75.4;               // 2πr (r=12)
   const MAX = 92, TRIGGER = 64;
   let startY = 0, pulling = false, dist = 0, busy = false;
+  let spinRaf = null, spinAngle = 0;
+
+  // CSS 애니메이션이 꺼진 환경(동작 줄이기)에서도 돌도록 JS로 직접 회전
+  const startSpin = () => {
+    if (spinRaf) return;
+    let last = performance.now();
+    const step = (now) => {
+      spinAngle = (spinAngle + (now - last) * 0.52) % 360;  // ≈0.7s/회전
+      last = now;
+      spin.style.transform = `rotate(${spinAngle}deg)`;
+      spinRaf = requestAnimationFrame(step);
+    };
+    spinRaf = requestAnimationFrame(step);
+  };
+  const stopSpin = () => {
+    if (spinRaf) cancelAnimationFrame(spinRaf);
+    spinRaf = null;
+    spinAngle = 0;
+  };
 
   // 당긴 거리 → 링이 점점 감기고 함께 회전
   const setPull = (d, animate = false) => {
     const p = Math.min(1, d / TRIGGER);
     ind.style.transition = animate ? '' : 'none';
     arc.style.transition = animate ? 'stroke-dashoffset 0.3s var(--ease)' : 'none';
-    ind.style.transform = `translateY(${d}px) rotate(${d * 3}deg)`;
+    ind.style.transform = `translateY(${d}px)`;
     ind.style.opacity = String(Math.min(1, d / 32));
     arc.style.strokeDashoffset = String(CIRC * (1 - p * 0.92));
+    // 회전은 스피너 요소가 담당 → 놓았을 때 그 각도에서 이어서 돌아감
+    if (!spinRaf) {
+      spinAngle = d * 3;
+      spin.style.transform = `rotate(${spinAngle}deg)`;
+    }
     ind.classList.toggle('ready', p >= 1);
   };
 
@@ -1369,6 +1394,7 @@ function initPullToRefresh() {
       // 감긴 링이 그대로 스피너로 이어짐 (끊김 없이)
       arc.style.transition = '';
       ind.classList.add('loading');
+      startSpin();
       ind.style.transition = 'transform 0.28s var(--ease)';
       ind.style.transform = `translateY(${TRIGGER}px)`;
       try {
@@ -1378,6 +1404,7 @@ function initPullToRefresh() {
           new Promise(r => setTimeout(r, 800)),
         ]);
       } finally {
+        stopSpin();
         ind.classList.remove('loading', 'ready');
         setPull(0, true);
         setTimeout(() => { busy = false; }, 320);

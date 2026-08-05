@@ -1253,14 +1253,12 @@ body::before {
   transition: stroke 0.2s var(--ease);
 }
 .ptr.ready .ptr-arc { stroke: var(--ice); }
-/* 로딩: 감긴 링이 짧은 호로 좁혀지며 계속 회전 */
-.ptr.loading .ptr-spin { animation: ptrSpin 0.7s linear infinite; }
+/* 로딩: 감긴 링이 짧은 호로 좁혀짐 (회전은 JS가 구동) */
 .ptr.loading .ptr-arc {
   stroke: var(--ice);
   stroke-dashoffset: 56 !important;
   transition: stroke-dashoffset 0.25s var(--ease);
 }
-@keyframes ptrSpin { to { transform: rotate(360deg); } }
 
 /* ═══════════ 터치 피드백 ═══════════ */
 .card, .lift-card, .metric-card, .chip, .coach-close {
